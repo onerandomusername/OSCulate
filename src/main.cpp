@@ -5,10 +5,18 @@
 #include <Arduino.h>
 #include "USBHost_t36.h"
 #include "Keyboard.h"
+#include <OSCMessage.h>
+#include <QNEthernet.h>
+#include <string.h>
+
+using namespace qindesign::network;
 
 // You can have this one only output to the USB type Keyboard and
 // not show the keyboard data on Serial...
-#define SHOW_KEYBOARD_DATA
+// #define SHOW_KEYBOARD_DATA
+
+
+EthernetUDP udp = EthernetUDP(1);
 
 USBHost myusb;
 USBHub hub1(myusb);
@@ -28,6 +36,11 @@ uint8_t keyboard_last_leds = 0;
 #define SHOW_KEYBOARD_DATA
 #endif
 
+bool gotIP = false;
+IPAddress ip;
+IPAddress DEST_IP = IPAddress(10, 101, 67, 139);
+uint16_t outPort = 5005;
+
 void ShowUpdatedDeviceListInfo(void);
 void OnPress(int);
 void OnRawPress(uint8_t);
@@ -36,10 +49,12 @@ void OnHIDExtrasPress(uint32_t,uint16_t);
 void OnHIDExtrasRelease(uint32_t,uint16_t);
 void ShowHIDExtrasPress(uint32_t,uint16_t);
 
-void setup()
-{
+void setup() {
+  while (!Serial && millis() < 4000) {
+    // Wait for Serial
+  } // wait for Arduino Serial Monitor
 #ifdef SHOW_KEYBOARD_DATA
-	while (!Serial) ; // wait for Arduino Serial Monitor
+	  
 	Serial.println("\n\nUSB Host Keyboard forward and Testing");
 	Serial.println(sizeof(USBHub), DEC);
 #endif
@@ -56,12 +71,61 @@ void setup()
 	keyboard1.attachRawRelease(OnRawRelease);
 	keyboard1.attachExtrasPress(OnHIDExtrasPress);
 	keyboard1.attachExtrasRelease(OnHIDExtrasRelease);
+
+  Ethernet.onLinkState([](bool state) {
+    if (state) {
+      Serial.println("[Ethernet] Link ON");
+    } else {
+      Serial.println("[Ethernet] Link OFF");
+    }
+  });
+
+  // Watch for address changes
+  // It will take a little time to get an IP address, so watch for it
+  Ethernet.onAddressChanged([]() {
+    IPAddress ip = Ethernet.localIP();
+    bool hasIP = (ip != INADDR_NONE);
+    if (hasIP) {
+      gotIP = true;
+      Serial.printf("[Ethernet] Address changed:\r\n");
+      ip = Ethernet.localIP();
+      Serial.printf("    Local IP     = %u.%u.%u.%u\r\n", ip[0], ip[1], ip[2], ip[3]);
+      ip = Ethernet.subnetMask();
+      Serial.printf("    Subnet mask  = %u.%u.%u.%u\r\n", ip[0], ip[1], ip[2], ip[3]);
+      ip = Ethernet.broadcastIP();
+      Serial.printf("    Broadcast IP = %u.%u.%u.%u\r\n", ip[0], ip[1], ip[2], ip[3]);
+      ip = Ethernet.gatewayIP();
+      Serial.printf("    Gateway      = %u.%u.%u.%u\r\n", ip[0], ip[1], ip[2], ip[3]);
+      ip = Ethernet.dnsServerIP();
+      Serial.printf("    DNS          = %u.%u.%u.%u\r\n", ip[0], ip[1], ip[2], ip[3]);
+    } else {
+      Serial.println("[Ethernet] Address changed: No IP");
+    }
+  });
+
+  Serial.println();
+  Serial.println("[Start]");
+  Serial.println("Starting Ethernet with DHCP...");
+  if (!Ethernet.begin()) {
+    Serial.println("ERROR: Failed to start Ethernet");
+    return;
+  }
+  udp.begin();
 }
 
 void loop()
 {
-	myusb.Task();
-	ShowUpdatedDeviceListInfo();
+	// myusb.Task();
+	// ShowUpdatedDeviceListInfo();
+  char huh[4] = "h";
+  char addressPrefix[15] = "/keypress/";
+  strcat(addressPrefix, huh);
+  OSCMessage msg(addressPrefix);
+  // Serial.printf("Address: %s\r\n", addressPrefix);
+  udp.beginPacket(DEST_IP, outPort);
+  msg.send(udp); // send the bytes to the SLIP stream
+  udp.endPacket(); // mark the end of the OSC Packet
+  msg.empty(); // free space occupied by message
 }
 
 
@@ -126,6 +190,7 @@ void OnRawPress(uint8_t keycode) {
 	Serial.println(keyboard_modifiers, HEX);
 #endif
 }
+
 void OnRawRelease(uint8_t keycode) {
 #ifdef KEYBOARD_INTERFACE
 	if (keycode >= 103 && keycode < 111) {
