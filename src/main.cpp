@@ -4,17 +4,22 @@
 
 #include <Arduino.h>
 #include "USBHost_t36.h"
-#include "Keyboard.h"
 #include <OSCMessage.h>
 #include <QNEthernet.h>
-#include <string.h>
+#include <string>
+#include <unordered_set>
 
+using namespace std;
 using namespace qindesign::network;
 
 // You can have this one only output to the USB type Keyboard and
 // not show the keyboard data on Serial...
-// #define SHOW_KEYBOARD_DATA
+#define SHOW_KEYBOARD_DATA
 
+
+const char addressPrefix[] = "/keypress/";
+
+u_int32_t ledLastOn = 0;
 
 EthernetUDP udp = EthernetUDP(1);
 
@@ -29,25 +34,47 @@ USBHIDParser hid2(myusb);
 USBHIDParser hid3(myusb);
 
 uint8_t keyboard_modifiers = 0;  // try to keep a reasonable value
+
+unordered_set<string> unprocessedKeyDown;
+unordered_set<string> unprocessedKeyUp;
+unordered_set<string> keysDownOnHost;
+bool state_changed = false;
+
 #ifdef KEYBOARD_INTERFACE
 uint8_t keyboard_last_leds = 0;
-#elif !defined(SHOW_KEYBOARD_DATA)
-#Warning: "USB type does not have Serial, so turning on SHOW_KEYBOARD_DATA"
-#define SHOW_KEYBOARD_DATA
+// #elif !defined(SHOW_KEYBOARD_DATA)
+// #Warning: "USB type does not have Serial, so turning on SHOW_KEYBOARD_DATA"
+// #define SHOW_KEYBOARD_DATA
 #endif
 
 bool gotIP = false;
 IPAddress ip;
 IPAddress DEST_IP = IPAddress(10, 101, 67, 139);
-uint16_t outPort = 5005;
+uint16_t outPort = 6379;
 
 void ShowUpdatedDeviceListInfo(void);
 void OnPress(int);
+void OnRelease(int);
 void OnRawPress(uint8_t);
 void OnRawRelease(uint8_t);
 void OnHIDExtrasPress(uint32_t,uint16_t);
 void OnHIDExtrasRelease(uint32_t,uint16_t);
 void ShowHIDExtrasPress(uint32_t,uint16_t);
+
+void sendRemoteCommand(const char key[], bool isDown) {
+  Serial.print("Got key: ");
+  Serial.println(key);
+  string address(addressPrefix);
+  address += key;
+  OSCMessage msg(address.c_str());
+  msg.add(isDown ? 1.0 : 0.0);
+  Serial.printf("Address: %s\r\n", address.c_str());
+  udp.beginPacket(DEST_IP, outPort);
+  msg.send(udp); // send the bytes to the SLIP stream
+  udp.endPacket(); // mark the end of the OSC Packet
+  msg.empty(); // free space occupied by message
+}
+
 
 void setup() {
   while (!Serial && millis() < 4000) {
@@ -59,18 +86,20 @@ void setup() {
 	Serial.println(sizeof(USBHub), DEC);
 #endif
 	myusb.begin();
+
+#ifdef KEYBOARD_INTERFACE
   Keyboard.begin();
   Keyboard.press(KEY_NUM_LOCK);
   delay(600);
   Keyboard.release(KEY_NUM_LOCK);
-	// Only needed to display...
-#ifdef SHOW_KEYBOARD_DATA
-	keyboard1.attachPress(OnPress);
 #endif
+	// Only needed to display...
+	// keyboard1.attachPress(OnPress);
+ 	// keyboard1.attachRelease(OnRelease);
 	keyboard1.attachRawPress(OnRawPress);
 	keyboard1.attachRawRelease(OnRawRelease);
-	keyboard1.attachExtrasPress(OnHIDExtrasPress);
-	keyboard1.attachExtrasRelease(OnHIDExtrasRelease);
+	// keyboard1.attachExtrasPress(OnHIDExtrasPress);
+	// keyboard1.attachExtrasRelease(OnHIDExtrasRelease);
 
   Ethernet.onLinkState([](bool state) {
     if (state) {
@@ -110,23 +139,47 @@ void setup() {
     Serial.println("ERROR: Failed to start Ethernet");
     return;
   }
-  udp.begin();
+  Serial.printf("UDP set up to %u\r\n", outPort);
+
+	// configure the built in LED for output
+	// we will use this as a status indicator for when a key is pressed and a signal is being sent
+  pinMode(LED_BUILTIN, OUTPUT);
 }
+
+uint16_t lastKey = 0;
 
 void loop()
 {
-	// myusb.Task();
-	// ShowUpdatedDeviceListInfo();
-  char huh[4] = "h";
-  char addressPrefix[15] = "/keypress/";
-  strcat(addressPrefix, huh);
-  OSCMessage msg(addressPrefix);
-  // Serial.printf("Address: %s\r\n", addressPrefix);
-  udp.beginPacket(DEST_IP, outPort);
-  msg.send(udp); // send the bytes to the SLIP stream
-  udp.endPacket(); // mark the end of the OSC Packet
-  msg.empty(); // free space occupied by message
+	myusb.Task();
+	ShowUpdatedDeviceListInfo();
+	if (state_changed) {
+		state_changed = false;
+		digitalWrite(LED_BUILTIN, LOW);
+		ledLastOn = millis();
+		if (!unprocessedKeyUp.empty()) {
+			for (auto key : unprocessedKeyUp) {
+				Serial.print("Need to send a key UP for: ");
+				Serial.println(key.c_str());
+					sendRemoteCommand(key.c_str(), false);
+			}
+			unprocessedKeyUp.clear();
+		}
+		if (!unprocessedKeyDown.empty()) {
+			for (auto key : unprocessedKeyDown) {
+				Serial.print("Need to send a key DOWN for: ");
+				Serial.println(key.c_str());
+					sendRemoteCommand(key.c_str(), true);
+			}
+			unprocessedKeyDown.clear();
+		}
+	}
+	if (ledLastOn + 8 < millis()) {
+		digitalWrite(LED_BUILTIN, HIGH);
+	}
+	
 }
+
+
 
 
 void OnHIDExtrasPress(uint32_t top, uint16_t key)
@@ -159,7 +212,220 @@ void OnHIDExtrasRelease(uint32_t top, uint16_t key)
 #endif
 }
 
+string rawKeyToString(uint8_t keycode) {
+	Serial.print("Keycode: ");
+	Serial.println(keycode);
+
+	uint16_t matcher = keycode | 0xF000; 
+	string key_equal;
+switch (matcher) {
+    case KEY_A:
+        key_equal = "a";
+        break;
+    case KEY_B:
+        key_equal = "b";
+        break;
+    case KEY_C:
+        key_equal = "c";
+        break;
+    case KEY_D:
+        key_equal = "d";
+        break;
+    case KEY_E:
+        key_equal = "e";
+        break;
+    case KEY_F:
+        key_equal = "f";
+        break;
+    case KEY_G:
+        key_equal = "g";
+        break;
+    case KEY_H:
+        key_equal = "h";
+        break;
+    case KEY_I:
+        key_equal = "i";
+        break;
+    case KEY_J:
+        key_equal = "j";
+        break;
+    case KEY_K:
+        key_equal = "k";
+        break;
+    case KEY_L:
+        key_equal = "l";
+        break;
+    case KEY_M:
+        key_equal = "m";
+        break;
+    case KEY_N:
+        key_equal = "n";
+        break;
+    case KEY_O:
+        key_equal = "o";
+        break;
+    case KEY_P:
+        key_equal = "p";
+        break;
+    case KEY_Q:
+        key_equal = "q";
+        break;
+    case KEY_R:
+        key_equal = "r";
+        break;
+    case KEY_S:
+        key_equal = "s";
+        break;
+    case KEY_T:
+        key_equal = "t";
+        break;
+    case KEY_U:
+        key_equal = "u";
+        break;
+    case KEY_V:
+        key_equal = "v";
+        break;
+    case KEY_W:
+        key_equal = "w";
+        break;
+    case KEY_X:
+        key_equal = "x";
+        break;
+    case KEY_Y:
+        key_equal = "y";
+        break;
+    case KEY_Z:
+        key_equal = "z";
+        break;
+    case KEY_1:
+        key_equal = "1";
+        break;
+    case KEY_2:
+        key_equal = "2";
+        break;
+    case KEY_3:
+        key_equal = "3";
+        break;
+    case KEY_4:
+        key_equal = "4";
+        break;
+    case KEY_5:
+        key_equal = "5";
+        break;
+    case KEY_6:
+        key_equal = "6";
+        break;
+    case KEY_7:
+        key_equal = "7";
+        break;
+    case KEY_8:
+        key_equal = "8";
+        break;
+    case KEY_9:
+        key_equal = "9";
+        break;
+    case KEY_0:
+        key_equal = "0";
+        break;
+    case KEY_SPACE:
+        key_equal = "Space";
+        break;
+    case KEY_ENTER:
+        key_equal = "Enter";
+        break;
+    case KEY_TAB:
+        key_equal = "Tab";
+        break;
+    case KEY_BACKSPACE:
+        key_equal = "Backspace";
+        break;
+    case KEY_ESC:
+        key_equal = "Escape";
+        break;
+    case KEY_UP:
+        key_equal = "Up";
+        break;
+    case KEY_DOWN:
+        key_equal = "Down";
+        break;
+    case KEY_LEFT:
+        key_equal = "Left";
+        break;
+    case KEY_RIGHT:
+        key_equal = "Right";
+        break;
+	case KEY_LEFT_GUI:
+		key_equal = "LGUI";
+		break;
+	case KEY_RIGHT_GUI:
+		key_equal = "RGUI";
+		break;
+    case KEY_LEFT_SHIFT:
+        key_equal = "LShift";
+        break;
+    case KEY_RIGHT_SHIFT:
+        key_equal = "RShift";
+        break;
+    case KEY_LEFT_CTRL:
+        key_equal = "LCtrl";
+        break;
+    case KEY_RIGHT_CTRL:
+        key_equal = "RCtrl";
+        break;
+    case KEY_LEFT_ALT:
+        key_equal = "LAlt";
+        break;
+    case KEY_RIGHT_ALT:
+        key_equal = "RAlt";
+        break;
+    case KEY_F1:
+        key_equal = "F1";
+        break;
+    case KEY_F2:
+        key_equal = "F2";
+        break;
+    case KEY_F3:
+        key_equal = "F3";
+        break;
+    case KEY_F4:
+        key_equal = "F4";
+        break;
+    case KEY_F5:
+        key_equal = "F5";
+        break;
+    case KEY_F6:
+        key_equal = "F6";
+        break;
+    case KEY_F7:
+        key_equal = "F7";
+        break;
+    case KEY_F8:
+        key_equal = "F8";
+        break;
+    case KEY_F9:
+        key_equal = "F9";
+        break;
+    case KEY_F10:
+        key_equal = "F10";
+        break;
+    case KEY_F11:
+        key_equal = "F11";
+        break;
+    case KEY_F12:
+        key_equal = "F12";
+        break;
+	default:
+	key_equal = '\0';
+		break;
+}
+Serial.print("Key Equal: ");
+Serial.println(key_equal.c_str());
+return key_equal;
+}
+
 void OnRawPress(uint8_t keycode) {
+	unprocessedKeyDown.insert(rawKeyToString(keycode));
+	state_changed = true;
 #ifdef KEYBOARD_INTERFACE
 	if (keyboard_leds != keyboard_last_leds) {
 		Serial.printf("New LEDS: %x\n", keyboard_leds);
@@ -192,6 +458,8 @@ void OnRawPress(uint8_t keycode) {
 }
 
 void OnRawRelease(uint8_t keycode) {
+	unprocessedKeyUp.insert(rawKeyToString(keycode));
+	state_changed = true;
 #ifdef KEYBOARD_INTERFACE
 	if (keycode >= 103 && keycode < 111) {
 		// one of the modifier keys was pressed, so lets turn it
@@ -210,6 +478,7 @@ void OnRawRelease(uint8_t keycode) {
 	Serial.println(keyboard1.getModifiers(), HEX);
 #endif
 }
+
 
 //=============================================================
 // Device and Keyboard Output To Serial objects...
@@ -306,35 +575,38 @@ void ShowUpdatedDeviceListInfo()
 #endif
 }
 
-#ifdef SHOW_KEYBOARD_DATA
 void OnPress(int key)
 {
+  #ifdef SHOW_KEYBOARD_DATA
+	string to_print;
 	Serial.print("key '");
 	switch (key) {
-	case KEYD_UP       : Serial.print("UP"); break;
-	case KEYD_DOWN    : Serial.print("DN"); break;
-	case KEYD_LEFT     : Serial.print("LEFT"); break;
-	case KEYD_RIGHT   : Serial.print("RIGHT"); break;
-	case KEYD_INSERT   : Serial.print("Ins"); break;
-	case KEYD_DELETE   : Serial.print("Del"); break;
-	case KEYD_PAGE_UP  : Serial.print("PUP"); break;
-	case KEYD_PAGE_DOWN: Serial.print("PDN"); break;
-	case KEYD_HOME     : Serial.print("HOME"); break;
-	case KEYD_END      : Serial.print("END"); break;
-	case KEYD_F1       : Serial.print("F1"); break;
-	case KEYD_F2       : Serial.print("F2"); break;
-	case KEYD_F3       : Serial.print("F3"); break;
-	case KEYD_F4       : Serial.print("F4"); break;
-	case KEYD_F5       : Serial.print("F5"); break;
-	case KEYD_F6       : Serial.print("F6"); break;
-	case KEYD_F7       : Serial.print("F7"); break;
-	case KEYD_F8       : Serial.print("F8"); break;
-	case KEYD_F9       : Serial.print("F9"); break;
-	case KEYD_F10      : Serial.print("F10"); break;
-	case KEYD_F11      : Serial.print("F11"); break;
-	case KEYD_F12      : Serial.print("F12"); break;
-	default: Serial.print((char)key); break;
+	case KEYD_UP       : to_print = "UP"; break;
+	case KEYD_DOWN    : to_print="DN"; break;
+	case KEYD_LEFT     : to_print="LEFT"; break;
+	case KEYD_RIGHT   : to_print="RIGHT"; break;
+	case KEYD_INSERT   : to_print="Ins"; break;
+	case KEYD_DELETE   : to_print="Del"; break;
+	case KEYD_PAGE_UP  : to_print="PUP"; break;
+	case KEYD_PAGE_DOWN: to_print="PDN"; break;
+	case KEYD_HOME     : to_print="HOME"; break;
+	case KEYD_END      : to_print="END"; break;
+	case KEYD_F1       : to_print="F1"; break;
+	case KEYD_F2       : to_print="F2"; break;
+	case KEYD_F3       : to_print="F3"; break;
+	case KEYD_F4       : to_print="F4"; break;
+	case KEYD_F5       : to_print="F5"; break;
+	case KEYD_F6       : to_print="F6"; break;
+	case KEYD_F7       : to_print="F7"; break;
+	case KEYD_F8       : to_print="F8"; break;
+	case KEYD_F9       : to_print="F9"; break;
+	case KEYD_F10      : to_print="F10"; break;
+	case KEYD_F11      : to_print="F11"; break;
+	case KEYD_F12      : to_print="F12"; break;
+	default: to_print=(char)key; break;
 	}
+	Serial.print(to_print.c_str());
+
 	Serial.print("'  ");
 	Serial.print(key);
 	Serial.print(" MOD: ");
@@ -343,13 +615,40 @@ void OnPress(int key)
 	Serial.print(keyboard1.getOemKey(), HEX);
 	Serial.print(" LEDS: ");
 	Serial.println(keyboard1.LEDS(), HEX);
-	//Serial.print("key ");
-	//Serial.print((char)keyboard1.getKey());
+	Serial.print("key ");
+	Serial.print((char)keyboard1.getKey());
 	//Serial.print("  ");
 	//Serial.print((char)keyboard2.getKey());
 	//Serial.println();
+  #endif
+
+  string address(addressPrefix);
+  address += (char)key;
+//   OSCMessage msg("/keypress/a");
+//   msg.add(1.0);
+  Serial.printf("Address: %s\r\n", address.c_str());
+//   udp.beginPacket(DEST_IP, outPort);
+//   msg.send(udp); // send the bytes to the SLIP stream
+//   udp.endPacket(); // mark the end of the OSC Packet
+//   msg.empty(); // free space occupied by message
+
 }
-#endif
+
+
+
+
+void OnRelease(int key)
+{
+  string address(addressPrefix);
+  address += (char)key;
+//   OSCMessage msg("keypress/a");
+//   msg.add(0);
+  Serial.printf("Address: %s\r\n", address.c_str());
+//   udp.beginPacket(DEST_IP, outPort);
+//   msg.send(udp); // send the bytes to the SLIP stream
+//   udp.endPacket(); // mark the end of the OSC Packet
+//   msg.empty(); // free space occupied by message
+}
 
 void ShowHIDExtrasPress(uint32_t top, uint16_t key)
 {
