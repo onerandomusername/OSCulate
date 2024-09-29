@@ -3,7 +3,7 @@
 // This example is in the public domain
 
 #include <Arduino.h>
-#include "USBHost_t36.h"
+#include <USBHost_t36.h>
 #include <OSCMessage.h>
 #include <QNEthernet.h>
 #include <string>
@@ -49,7 +49,7 @@ uint8_t keyboard_last_leds = 0;
 
 bool gotIP = false;
 IPAddress ip;
-IPAddress DEST_IP = IPAddress(10, 101, 67, 139);
+IPAddress DEST_IP = IPAddress(10, 101, 67, 117);
 uint16_t outPort = 6379;
 
 void ShowUpdatedDeviceListInfo(void);
@@ -94,7 +94,7 @@ void setup() {
   Keyboard.release(KEY_NUM_LOCK);
 #endif
 	// Only needed to display...
-	// keyboard1.attachPress(OnPress);
+	keyboard1.attachPress(OnPress);
  	// keyboard1.attachRelease(OnRelease);
 	keyboard1.attachRawPress(OnRawPress);
 	keyboard1.attachRawRelease(OnRawRelease);
@@ -154,7 +154,7 @@ void loop()
 	ShowUpdatedDeviceListInfo();
 	if (state_changed) {
 		state_changed = false;
-		digitalWrite(LED_BUILTIN, LOW);
+		digitalWrite(LED_BUILTIN, HIGH);
 		ledLastOn = millis();
 		if (!unprocessedKeyUp.empty()) {
 			for (auto key : unprocessedKeyUp) {
@@ -173,8 +173,8 @@ void loop()
 			unprocessedKeyDown.clear();
 		}
 	}
-	if (ledLastOn + 8 < millis()) {
-		digitalWrite(LED_BUILTIN, HIGH);
+	if (ledLastOn + 6 < millis()) {
+		digitalWrite(LED_BUILTIN, LOW);
 	}
 	
 }
