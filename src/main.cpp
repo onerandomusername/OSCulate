@@ -77,16 +77,22 @@ void sendRemoteCommand(const char key[], bool isDown) {
 
 
 void setup() {
+// configure the built in LED for output
+// we will use this as a status indicator for when a key is pressed and a signal is being sent
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, HIGH);	
   while (!Serial && millis() < 4000) {
     // Wait for Serial
   } // wait for Arduino Serial Monitor
+  Serial.println('\n\n\n');
+
 #ifdef SHOW_KEYBOARD_DATA
 	  
 	Serial.println("\n\nUSB Host Keyboard forward and Testing");
 	Serial.println(sizeof(USBHub), DEC);
 #endif
 	myusb.begin();
-
+	Serial.println("USB Host started");
 #ifdef KEYBOARD_INTERFACE
   Keyboard.begin();
   Keyboard.press(KEY_NUM_LOCK);
@@ -139,11 +145,12 @@ void setup() {
     Serial.println("ERROR: Failed to start Ethernet");
     return;
   }
+  
   Serial.printf("UDP set up to %u\r\n", outPort);
 
-	// configure the built in LED for output
-	// we will use this as a status indicator for when a key is pressed and a signal is being sent
-  pinMode(LED_BUILTIN, OUTPUT);
+
+  digitalWrite(LED_BUILTIN, LOW);	
+
 }
 
 uint16_t lastKey = 0;
