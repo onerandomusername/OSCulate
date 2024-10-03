@@ -213,9 +213,39 @@ std::string rawKeyToString(uint8_t keycode) {
   Serial.print("Keycode: ");
   Serial.println(keycode);
 
-  uint16_t matcher = keycode | 0xF000;
+  uint16_t matcher;
+  if (keycode >= 103 && keycode < 111) {
+    uint8_t keybit = 1 << (keycode - 103);
+    matcher = keybit | 0xE000;
+  } else
+    matcher = keycode | 0xF000;
+
   std::string key_equal;
   switch (matcher) {
+  case KEY_LEFT_CTRL:
+    key_equal = "LCtrl";
+    break;
+  case KEY_LEFT_SHIFT:
+    key_equal = "LShift";
+    break;
+  case KEY_LEFT_ALT:
+    key_equal = "LAlt";
+    break;
+  case KEY_LEFT_GUI:
+    key_equal = "LGUI";
+    break;
+  case KEY_RIGHT_CTRL:
+    key_equal = "RCtrl";
+    break;
+  case KEY_RIGHT_SHIFT:
+    key_equal = "RShift";
+    break;
+  case KEY_RIGHT_ALT:
+    key_equal = "RAlt";
+    break;
+  case KEY_RIGHT_GUI:
+    key_equal = "RGUI";
+    break;
   case KEY_A:
     key_equal = "a";
     break;
@@ -324,56 +354,55 @@ std::string rawKeyToString(uint8_t keycode) {
   case KEY_0:
     key_equal = "0";
     break;
-  case KEY_SPACE:
-    key_equal = "Space";
-    break;
   case KEY_ENTER:
     key_equal = "Enter";
-    break;
-  case KEY_TAB:
-    key_equal = "Tab";
-    break;
-  case KEY_BACKSPACE:
-    key_equal = "Backspace";
     break;
   case KEY_ESC:
     key_equal = "Escape";
     break;
-  case KEY_UP:
-    key_equal = "Up";
+  case KEY_BACKSPACE:
+    key_equal = "Backspace";
     break;
-  case KEY_DOWN:
-    key_equal = "Down";
+  case KEY_TAB:
+    key_equal = "Tab";
     break;
-  case KEY_LEFT:
-    key_equal = "Left";
+  case KEY_SPACE:
+    key_equal = "Space";
     break;
-  case KEY_RIGHT:
-    key_equal = "Right";
+  case KEY_MINUS:
+    key_equal = "-";
     break;
-  case KEY_LEFT_GUI:
-    key_equal = "LGUI";
+  case KEY_EQUAL:
+    key_equal = "=";
     break;
-  case KEY_RIGHT_GUI:
-    key_equal = "RGUI";
+  case KEY_LEFT_BRACE:
+    key_equal = "[";
     break;
-  case KEY_LEFT_SHIFT:
-    key_equal = "LShift";
+  case KEY_RIGHT_BRACE:
+    key_equal = "]";
     break;
-  case KEY_RIGHT_SHIFT:
-    key_equal = "RShift";
+  case KEY_BACKSLASH:
+    key_equal = "\\";
     break;
-  case KEY_LEFT_CTRL:
-    key_equal = "LCtrl";
+  case KEY_SEMICOLON:
+    key_equal = ";";
     break;
-  case KEY_RIGHT_CTRL:
-    key_equal = "RCtrl";
+  case KEY_QUOTE:
+    key_equal = "'";
     break;
-  case KEY_LEFT_ALT:
-    key_equal = "LAlt";
+  case KEY_TILDE:
+    key_equal = "~";
     break;
-  case KEY_RIGHT_ALT:
-    key_equal = "RAlt";
+  case KEY_COMMA:
+    key_equal = ",";
+    break;
+  case KEY_PERIOD:
+    key_equal = ".";
+    break;
+  case KEY_SLASH:
+    key_equal = "/";
+  case KEY_CAPS_LOCK:
+    key_equal = "CapsLock";
     break;
   case KEY_F1:
     key_equal = "F1";
@@ -411,6 +440,49 @@ std::string rawKeyToString(uint8_t keycode) {
   case KEY_F12:
     key_equal = "F12";
     break;
+  case KEY_PRINTSCREEN:
+    key_equal = "PrintScreen";
+    break;
+  case KEY_SCROLL_LOCK:
+    key_equal = "ScrollLock";
+    break;
+  case KEY_PAUSE:
+    key_equal = "Pause";
+    break;
+  case KEY_INSERT:
+    key_equal = "Insert";
+    break;
+  case KEY_HOME:
+    key_equal = "Home";
+    break;
+  case KEY_PAGE_UP:
+    key_equal = "PageUp";
+    break;
+  case KEY_DELETE:
+    key_equal = "Delete";
+    break;
+  case KEY_END:
+    key_equal = "End";
+    break;
+  case KEY_PAGE_DOWN:
+    key_equal = "PageDown";
+    break;
+  case KEY_RIGHT:
+    key_equal = "Right";
+    break;
+  case KEY_LEFT:
+    key_equal = "Left";
+    break;
+  case KEY_DOWN:
+    key_equal = "Down";
+    break;
+  case KEY_UP:
+    key_equal = "Up";
+    break;
+  case KEY_NUM_LOCK:
+    key_equal = "NumLock";
+    break;
+
   default:
     key_equal = '\0';
     break;
