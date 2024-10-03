@@ -52,8 +52,6 @@ IPAddress DEST_IP = IPAddress(10, 101, 67, 117);
 uint16_t outPort = 6379;
 
 void ShowUpdatedDeviceListInfo(void);
-void OnPress(int);
-void OnRelease(int);
 void OnRawPress(uint8_t);
 void OnRawRelease(uint8_t);
 void OnHIDExtrasPress(uint32_t, uint16_t);
@@ -83,7 +81,7 @@ void setup() {
   while (!Serial && millis() < 4000) {
     // Wait for Serial
   } // wait for Arduino Serial Monitor
-  Serial.println('\n\n\n');
+  Serial.println("\n\n\n");
 
 #ifdef SHOW_KEYBOARD_DATA
 
@@ -98,9 +96,6 @@ void setup() {
   delay(600);
   Keyboard.release(KEY_NUM_LOCK);
 #endif
-  // Only needed to display...
-  keyboard1.attachPress(OnPress);
-  // keyboard1.attachRelease(OnRelease);
   keyboard1.attachRawPress(OnRawPress);
   keyboard1.attachRawRelease(OnRawRelease);
   // keyboard1.attachExtrasPress(OnHIDExtrasPress);
@@ -591,121 +586,6 @@ void ShowUpdatedDeviceListInfo() {
   }
 
 #endif
-}
-
-void OnPress(int key) {
-#ifdef SHOW_KEYBOARD_DATA
-  std::string to_print;
-  Serial.print("key '");
-  switch (key) {
-  case KEYD_UP:
-    to_print = "UP";
-    break;
-  case KEYD_DOWN:
-    to_print = "DN";
-    break;
-  case KEYD_LEFT:
-    to_print = "LEFT";
-    break;
-  case KEYD_RIGHT:
-    to_print = "RIGHT";
-    break;
-  case KEYD_INSERT:
-    to_print = "Ins";
-    break;
-  case KEYD_DELETE:
-    to_print = "Del";
-    break;
-  case KEYD_PAGE_UP:
-    to_print = "PUP";
-    break;
-  case KEYD_PAGE_DOWN:
-    to_print = "PDN";
-    break;
-  case KEYD_HOME:
-    to_print = "HOME";
-    break;
-  case KEYD_END:
-    to_print = "END";
-    break;
-  case KEYD_F1:
-    to_print = "F1";
-    break;
-  case KEYD_F2:
-    to_print = "F2";
-    break;
-  case KEYD_F3:
-    to_print = "F3";
-    break;
-  case KEYD_F4:
-    to_print = "F4";
-    break;
-  case KEYD_F5:
-    to_print = "F5";
-    break;
-  case KEYD_F6:
-    to_print = "F6";
-    break;
-  case KEYD_F7:
-    to_print = "F7";
-    break;
-  case KEYD_F8:
-    to_print = "F8";
-    break;
-  case KEYD_F9:
-    to_print = "F9";
-    break;
-  case KEYD_F10:
-    to_print = "F10";
-    break;
-  case KEYD_F11:
-    to_print = "F11";
-    break;
-  case KEYD_F12:
-    to_print = "F12";
-    break;
-  default:
-    to_print = (char)key;
-    break;
-  }
-  Serial.print(to_print.c_str());
-
-  Serial.print("'  ");
-  Serial.print(key);
-  Serial.print(" MOD: ");
-  Serial.print(keyboard1.getModifiers(), HEX);
-  Serial.print(" OEM: ");
-  Serial.print(keyboard1.getOemKey(), HEX);
-  Serial.print(" LEDS: ");
-  Serial.println(keyboard1.LEDS(), HEX);
-  Serial.print("key ");
-  Serial.print((char)keyboard1.getKey());
-  // Serial.print("  ");
-  // Serial.print((char)keyboard2.getKey());
-  // Serial.println();
-#endif
-
-  std::string address(addressPrefix);
-  address += (char)key;
-  //   OSCMessage msg("/keypress/a");
-  //   msg.add(1.0);
-  Serial.printf("Address: %s\r\n", address.c_str());
-  //   udp.beginPacket(DEST_IP, outPort);
-  //   msg.send(udp); // send the bytes to the SLIP stream
-  //   udp.endPacket(); // mark the end of the OSC Packet
-  //   msg.empty(); // free space occupied by message
-}
-
-void OnRelease(int key) {
-  std::string address(addressPrefix);
-  address += (char)key;
-  //   OSCMessage msg("keypress/a");
-  //   msg.add(0);
-  Serial.printf("Address: %s\r\n", address.c_str());
-  //   udp.beginPacket(DEST_IP, outPort);
-  //   msg.send(udp); // send the bytes to the SLIP stream
-  //   udp.endPacket(); // mark the end of the OSC Packet
-  //   msg.empty(); // free space occupied by message
 }
 
 void ShowHIDExtrasPress(uint32_t top, uint16_t key) {
