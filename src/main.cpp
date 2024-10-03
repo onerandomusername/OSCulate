@@ -9,7 +9,6 @@
 #include <string>
 #include <unordered_set>
 
-using namespace std;
 using namespace qindesign::network;
 
 // You can have this one only output to the USB type Keyboard and
@@ -35,9 +34,9 @@ USBHIDParser hid3(myusb);
 
 uint8_t keyboard_modifiers = 0; // try to keep a reasonable value
 
-unordered_set<string> unprocessedKeyDown;
-unordered_set<string> unprocessedKeyUp;
-unordered_set<string> keysDownOnHost;
+std::unordered_set<std::string> unprocessedKeyDown;
+std::unordered_set<std::string> unprocessedKeyUp;
+std::unordered_set<std::string> keysDownOnHost;
 bool state_changed = false;
 
 #ifdef KEYBOARD_INTERFACE
@@ -64,7 +63,7 @@ void ShowHIDExtrasPress(uint32_t, uint16_t);
 void sendRemoteCommand(const char key[], bool isDown) {
   Serial.print("Got key: ");
   Serial.println(key);
-  string address(addressPrefix);
+  std::string address(addressPrefix);
   address += key;
   OSCMessage msg(address.c_str());
   msg.add(isDown ? 1.0 : 0.0);
@@ -215,12 +214,12 @@ void OnHIDExtrasRelease(uint32_t top, uint16_t key) {
 #endif
 }
 
-string rawKeyToString(uint8_t keycode) {
+std::string rawKeyToString(uint8_t keycode) {
   Serial.print("Keycode: ");
   Serial.println(keycode);
 
   uint16_t matcher = keycode | 0xF000;
-  string key_equal;
+  std::string key_equal;
   switch (matcher) {
   case KEY_A:
     key_equal = "a";
@@ -596,7 +595,7 @@ void ShowUpdatedDeviceListInfo() {
 
 void OnPress(int key) {
 #ifdef SHOW_KEYBOARD_DATA
-  string to_print;
+  std::string to_print;
   Serial.print("key '");
   switch (key) {
   case KEYD_UP:
@@ -686,7 +685,7 @@ void OnPress(int key) {
   // Serial.println();
 #endif
 
-  string address(addressPrefix);
+  std::string address(addressPrefix);
   address += (char)key;
   //   OSCMessage msg("/keypress/a");
   //   msg.add(1.0);
@@ -698,7 +697,7 @@ void OnPress(int key) {
 }
 
 void OnRelease(int key) {
-  string address(addressPrefix);
+  std::string address(addressPrefix);
   address += (char)key;
   //   OSCMessage msg("keypress/a");
   //   msg.add(0);
