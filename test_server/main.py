@@ -5,16 +5,20 @@ received packets.
 """
 
 import argparse
+import atexit
 
-from pythonosc.dispatcher import Dispatcher
-from pythonosc import osc_server
 import ahk
+import ahk.keys
+from pythonosc import osc_server
+from pythonosc.dispatcher import Dispatcher
 
 AHK = ahk.AHK()
 
-AHK.set_send_mode('Input')
+AHK.set_send_mode("Input")
 
 ENABLE_AUTOHOTKEY: bool = False
+
+KEYS_PRESSED = set()
 
 
 def send_keypress(ip_addr: tuple[str, int], osc_addr: str, value: float, *args):
@@ -36,16 +40,25 @@ def send_keypress(ip_addr: tuple[str, int], osc_addr: str, value: float, *args):
                 )
 
             else:
+                KEYS_PRESSED.add(key)
                 AHK.key_down(key)
         print("Key down: ", key)
     else:
         if ENABLE_AUTOHOTKEY and key != "CapsLock":
             AHK.key_up(key)
+            KEYS_PRESSED.discard(key)
+
         print("Key up: ", key)
 
 
 def print_log(ip_addr, osc_addr, *args):
     print("[{0[0]}:{0[1]} {1}] ~ {2}".format(ip_addr, osc_addr, args))
+
+
+@atexit.register
+def at_exit():
+    for key in KEYS_PRESSED:
+        AHK.key_up(key)
 
 
 if __name__ == "__main__":
@@ -63,4 +76,9 @@ if __name__ == "__main__":
 
     server = osc_server.ThreadingOSCUDPServer((args.ip, args.port), dispatcher)
     print("Serving on {0}:{1}".format(*server.server_address))
-    server.serve_forever()
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        server.shutdown()
+        server.server_close()
+        print("Server closed")
