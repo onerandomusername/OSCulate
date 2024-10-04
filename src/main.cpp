@@ -209,10 +209,7 @@ void OnHIDExtrasRelease(uint32_t top, uint16_t key) {
 #endif
 }
 
-std::string rawKeyToString(uint8_t keycode) {
-  Serial.print("Keycode: ");
-  Serial.println(keycode);
-
+std::string rawKeyToStringPassThrough(uint8_t keycode) {
   uint16_t matcher;
   if (keycode >= 103 && keycode < 111) {
     uint8_t keybit = 1 << (keycode - 103);
@@ -391,7 +388,7 @@ std::string rawKeyToString(uint8_t keycode) {
     key_equal = "'";
     break;
   case KEY_TILDE:
-    key_equal = "~";
+    key_equal = "`";
     break;
   case KEY_COMMA:
     key_equal = ",";
@@ -401,6 +398,7 @@ std::string rawKeyToString(uint8_t keycode) {
     break;
   case KEY_SLASH:
     key_equal = "/";
+    break;
   case KEY_CAPS_LOCK:
     key_equal = "CapsLock";
     break;
@@ -456,7 +454,7 @@ std::string rawKeyToString(uint8_t keycode) {
     key_equal = "Home";
     break;
   case KEY_PAGE_UP:
-    key_equal = "PageUp";
+    key_equal = "PgUp";
     break;
   case KEY_DELETE:
     key_equal = "Delete";
@@ -465,7 +463,7 @@ std::string rawKeyToString(uint8_t keycode) {
     key_equal = "End";
     break;
   case KEY_PAGE_DOWN:
-    key_equal = "PageDown";
+    key_equal = "PgDn";
     break;
   case KEY_RIGHT:
     key_equal = "Right";
@@ -493,7 +491,8 @@ std::string rawKeyToString(uint8_t keycode) {
 }
 
 void OnRawPress(uint8_t keycode) {
-  unprocessedKeyDown.insert(rawKeyToString(keycode));
+  const std::string keypressed = rawKeyToStringPassThrough(keycode);
+  unprocessedKeyDown.insert(keypressed);
   state_changed = true;
 #ifdef KEYBOARD_INTERFACE
   if (keyboard_leds != keyboard_last_leds) {
@@ -528,7 +527,7 @@ void OnRawPress(uint8_t keycode) {
 }
 
 void OnRawRelease(uint8_t keycode) {
-  unprocessedKeyUp.insert(rawKeyToString(keycode));
+  unprocessedKeyUp.insert(rawKeyToStringPassThrough(keycode));
   state_changed = true;
 #ifdef KEYBOARD_INTERFACE
   if (keycode >= 103 && keycode < 111) {
