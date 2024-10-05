@@ -97,9 +97,11 @@ const std::unordered_map<std::uint16_t, std::string> KeyCombosToCommands = {
 
     {KEY_E, "recall_from"},
     {KEY_E | ALT, "effect"},
+    {KEY_E | CTRL | ALT, "stopeffect"},
 
     {KEY_F, "full"},
     {KEY_F | CTRL, "focus"},
+    {KEY_F | ALT, "focus_palette"},
     {KEY_F | CTRL | ALT, "freeze"},
 
     {KEY_G, "group"},
@@ -125,16 +127,19 @@ const std::unordered_map<std::uint16_t, std::string> KeyCombosToCommands = {
     {KEY_L, "label"},
     {KEY_L | CTRL, "select_last"},
     {KEY_L | ALT, "learn"},
+    {KEY_L | CTRL | ALT, "load"},
 
     {KEY_M, "macro"},
     {KEY_M | CTRL, "select_manual"},
     {KEY_M | ALT, "magic_sheet"},
+    {KEY_M | CTRL | ALT, "manual_override"},
 
     {KEY_N, "sneak"},
     {KEY_N | CTRL, "allnps"},
 
     {KEY_O, "out"},
     {KEY_O | CTRL, "offset"},
+    {KEY_O | CTRL | ALT, "off"},
 
     {KEY_P, "part"},
     {KEY_P | ALT, "preset"},
@@ -146,10 +151,12 @@ const std::unordered_map<std::uint16_t, std::string> KeyCombosToCommands = {
 
     {KEY_R, "record"},
     {KEY_R | CTRL, "record_only"},
+    {KEY_R | CTRL | ALT, "rate"},
 
     {KEY_S, "sub"},
     {KEY_S | CTRL, "snapshot"},
     {KEY_S | ALT, "setup"},
+    {KEY_S | CTRL | ALT, "release"},
 
     {KEY_T, "thru"},
     {KEY_T | CTRL | ALT, "timing_disable"},
@@ -184,6 +191,14 @@ const std::unordered_map<std::uint16_t, std::string> KeyCombosToCommands = {
     {KEY_9, "9"},
     {KEY_0, "0"},
 
+    {KEY_1 | CTRL, "live"},
+    {KEY_2 | CTRL, "blind"},
+    {KEY_3 | CTRL, "flexichannel_mode"},
+    {KEY_4 | CTRL, "format"},
+    {KEY_5 | CTRL, "expand"},
+    {KEY_7 | CTRL, "open_ml_controls"},
+    {KEY_9 | CTRL, "displays"},
+
     {KEY_1 | ALT, "softkey_1"},
     {KEY_2 | ALT, "softkey_2"},
     {KEY_3 | ALT, "softkey_3"},
@@ -192,7 +207,20 @@ const std::unordered_map<std::uint16_t, std::string> KeyCombosToCommands = {
     {KEY_6 | ALT, "softkey_6"},
     {KEY_7 | ALT, "more_softkeys"},
 
+    {KEY_1 | CTRL | ALT, "macro_801"},
+    {KEY_2 | CTRL | ALT, "macro_802"},
+    {KEY_3 | CTRL | ALT, "macro_803"},
+    {KEY_4 | CTRL | ALT, "macro_804"},
+    {KEY_5 | CTRL | ALT, "macro_805"},
+    {KEY_6 | CTRL | ALT, "macro_806"},
+    {KEY_7 | CTRL | ALT, "macro_807"},
+    {KEY_8 | CTRL | ALT, "macro_808"},
+    {KEY_9 | CTRL | ALT, "macro_809"},
+    {KEY_0 | CTRL | ALT, "macro_810"},
+
     {KEY_BACKSPACE, "clear_cmd"},
+    {KEY_BACKSPACE | CTRL | ALT, "clear_cmdline"},
+
     {KEY_ESC, "Escape"},
     {KEY_ENTER, "Enter"},
     {KEY_ENTER | CTRL, "Select"},
@@ -202,17 +230,23 @@ const std::unordered_map<std::uint16_t, std::string> KeyCombosToCommands = {
     {KEY_TAB, "tab"},
 
     {KEY_MINUS, "-"},
-    {KEY_MINUS | CTRL | ALT, ")"},
+    {KEY_MINUS | CTRL | ALT, "-%"},
 
     {KEY_EQUAL, "+"},
-    {KEY_EQUAL | CTRL | ALT, "("},
+    {KEY_EQUAL | CTRL | ALT, "+%"},
 
     {KEY_LEFT_BRACE, "workspace"},
     {KEY_RIGHT_BRACE, "workspace"},
 
     {KEY_BACKSLASH, "highlight"},
+    {50 | 0xF000,
+     "highlight"}, // i think key_backslash is the wrong value but not sure
+    {KEY_BACKSLASH | CTRL | ALT, "gio_encoder_display"},
+    {50 | 0xF000 | CTRL | ALT, "gio_encoder_display"},
 
     {KEY_SEMICOLON, "patch"},
+
+    {KEY_QUOTE, "filter"},
 
     {KEY_COMMA, ","},
 
@@ -223,11 +257,11 @@ const std::unordered_map<std::uint16_t, std::string> KeyCombosToCommands = {
 
     {KEY_HOME, "home"},
 
-    // {KEY_PAGE_UP, "page_up"},
+    {KEY_PAGE_UP, "last"},
 
     {KEY_DELETE, "delete"},
 
-    // {KEY_PAGE_DOWN, "page_down"},
+    {KEY_PAGE_DOWN, "next"},
 
     // Arrow keys
     {KEY_LEFT_ARROW, "page_left"},
@@ -241,7 +275,20 @@ const std::unordered_map<std::uint16_t, std::string> KeyCombosToCommands = {
     {KEY_F3, "flexichannel_mode"},
     {KEY_F4, "format"},
     {KEY_F5, "expand"},
-    {KEY_F6, "staging_mode"}
+    {KEY_F6, "staging_mode"},
+    {KEY_F7, "open_ml_controls"},
+    {KEY_F9, "displays"},
+
+    // Encoders
+    {KEY_LEFT_BRACE | CTRL | ALT, "encoder_category_color"},
+    {KEY_COMMA | CTRL | ALT, "encoder_category_focus"},
+    {KEY_SEMICOLON | CTRL | ALT, "encoder_category_form"},
+    {KEY_RIGHT_BRACE | CTRL | ALT, "encoder_category_image"},
+    {KEY_PERIOD | ALT, "encoder_category_intensity"},
+    {KEY_COMMA | ALT, "encoder_category_shutter"},
+
+    // custom mapping
+    {KEY_F23, "data"} // f23
 
 };
 
