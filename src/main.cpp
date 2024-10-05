@@ -15,7 +15,7 @@ using namespace qindesign::network;
 
 // You can have this one only output to the USB type Keyboard and
 // not show the keyboard data on Serial...
-#define SHOW_KEYBOARD_DATA
+// #define SHOW_KEYBOARD_DATA
 
 enum class OSCVersion {
   PacketLength,
@@ -23,7 +23,7 @@ enum class OSCVersion {
 };
 
 OSCVersion oscversion = OSCVersion::PacketLength;
-const char addressPrefix[] = "/keypress/";
+const char addressPrefix[] = "/eos/key/";
 
 u_int32_t ledLastOn = 0;
 
@@ -66,11 +66,184 @@ uint8_t keyboard_last_leds = 0;
 bool gotIP = false;
 IPAddress ip;
 IPAddress DEST_IP = IPAddress(10, 101, 1, 101);
-uint16_t outPort = 6379;
+uint16_t outPort = 3032;
 
 IPAddress staticIP(10, 101, 1, 104);
 IPAddress staticSubnetMask(255, 255, 0, 0);
 int fallbackWaitTime = 6000UL;
+
+const uint16_t CTRL = 1 << 9;
+const uint16_t SHIFT = 1 << 10;
+const uint16_t ALT = 1 << 11;
+const std::unordered_map<std::uint16_t, std::string> KeyCombosToCommands = {
+    {KEY_A, "at"},
+    {KEY_A | CTRL, "select_active"},
+    {KEY_A | ALT, "address"},
+    {KEY_A | CTRL | ALT, "playbackassert"},
+
+    {KEY_B, "block"},
+    {KEY_B | CTRL, "beam"},
+    {KEY_B | ALT, "beam_palette"},
+    {KEY_B | CTRL | ALT, "intensity_block"},
+
+    {KEY_C, "copy_to"},
+    {KEY_C | CTRL, "color"},
+    {KEY_C | ALT, "color_palette"},
+    {KEY_C | CTRL | ALT, "scroller_frame"},
+
+    {KEY_D, "delay"},
+    {KEY_D | CTRL, "data"},
+    {KEY_D | CTRL | ALT, "follow"},
+
+    {KEY_E, "recall_from"},
+    {KEY_E | ALT, "effect"},
+
+    {KEY_F, "full"},
+    {KEY_F | CTRL, "focus"},
+    {KEY_F | CTRL | ALT, "freeze"},
+
+    {KEY_G, "group"},
+    {KEY_G | CTRL, "go_to_cue"},
+    {KEY_G | ALT, "spacebar_go"},
+    {KEY_G | CTRL | ALT, "go_to_cue_0"},
+
+    {KEY_H, "rem_dim"},
+    {KEY_H | CTRL, "home"},
+    {KEY_H | CTRL | ALT, "highlight"},
+
+    {KEY_I, "time"},
+    {KEY_I | CTRL, "intensity"},
+    {KEY_I | ALT, "intensity_palette"},
+    {KEY_I | CTRL | ALT, "display_timing"},
+
+    {KEY_J, "trace"},
+
+    {KEY_K, "mark"},
+    {KEY_K | CTRL, "popup_virtual_keyboard"},
+    {KEY_K | ALT, "park"},
+
+    {KEY_L, "label"},
+    {KEY_L | CTRL, "select_last"},
+    {KEY_L | ALT, "learn"},
+
+    {KEY_M, "macro"},
+    {KEY_M | CTRL, "select_manual"},
+    {KEY_M | ALT, "magic_sheet"},
+
+    {KEY_N, "sneak"},
+    {KEY_N | CTRL, "allnps"},
+
+    {KEY_O, "out"},
+    {KEY_O | CTRL, "offset"},
+
+    {KEY_P, "part"},
+    {KEY_P | ALT, "preset"},
+    {KEY_P | CTRL | ALT, "capture"},
+
+    {KEY_Q, "cue"},
+    {KEY_Q | CTRL, "query"},
+    {KEY_Q | ALT, "stopback"},
+
+    {KEY_R, "record"},
+    {KEY_R | CTRL, "record_only"},
+
+    {KEY_S, "sub"},
+    {KEY_S | CTRL, "snapshot"},
+    {KEY_S | ALT, "setup"},
+
+    {KEY_T, "thru"},
+    {KEY_T | CTRL | ALT, "timing_disable"},
+
+    {KEY_U, "update"},
+    {KEY_U | CTRL | ALT, "focus_wand"},
+
+    {KEY_V, "fader_pages"},
+    {KEY_V | CTRL, "level"},
+    {KEY_V | CTRL | ALT, "notes"},
+
+    {KEY_W, "fan_"},
+    {KEY_W | CTRL, "assert"},
+    {KEY_W | CTRL | ALT, "color_path"},
+
+    {KEY_X, "cueonlytrack"},
+    {KEY_X | CTRL, "undo"},
+    {KEY_X | ALT, "pixelmap"},
+
+    {KEY_Y, "about"},
+
+    {KEY_Z, "shift"},
+
+    {KEY_1, "1"},
+    {KEY_2, "2"},
+    {KEY_3, "3"},
+    {KEY_4, "4"},
+    {KEY_5, "5"},
+    {KEY_6, "6"},
+    {KEY_7, "7"},
+    {KEY_8, "8"},
+    {KEY_9, "9"},
+    {KEY_0, "0"},
+
+    {KEY_1 | ALT, "softkey_1"},
+    {KEY_2 | ALT, "softkey_2"},
+    {KEY_3 | ALT, "softkey_3"},
+    {KEY_4 | ALT, "softkey_4"},
+    {KEY_5 | ALT, "softkey_5"},
+    {KEY_6 | ALT, "softkey_6"},
+    {KEY_7 | ALT, "more_softkeys"},
+
+    {KEY_BACKSPACE, "clear_cmd"},
+    {KEY_ESC, "Escape"},
+    {KEY_ENTER, "Enter"},
+    {KEY_ENTER | CTRL, "Select"},
+    {KEY_SPACE, "go"},
+    {KEY_SPACE | CTRL, "stop"},
+
+    {KEY_TAB, "tab"},
+
+    {KEY_MINUS, "-"},
+    {KEY_MINUS | CTRL | ALT, ")"},
+
+    {KEY_EQUAL, "+"},
+    {KEY_EQUAL | CTRL | ALT, "("},
+
+    {KEY_LEFT_BRACE, "workspace"},
+    {KEY_RIGHT_BRACE, "workspace"},
+
+    {KEY_BACKSLASH, "highlight"},
+
+    {KEY_SEMICOLON, "patch"},
+
+    {KEY_COMMA, ","},
+
+    {KEY_PERIOD, "."},
+
+    {KEY_SLASH, "\\"}, // Shift+/ usually results in '?'
+    {KEY_SLASH | ALT, "Help"},
+
+    {KEY_HOME, "home"},
+
+    // {KEY_PAGE_UP, "page_up"},
+
+    {KEY_DELETE, "delete"},
+
+    // {KEY_PAGE_DOWN, "page_down"},
+
+    // Arrow keys
+    {KEY_LEFT_ARROW, "page_left"},
+    {KEY_DOWN_ARROW, "page_down"},
+    {KEY_UP_ARROW, "page_up"},
+    {KEY_RIGHT_ARROW, "page_right"},
+
+    // Function keys
+    {KEY_F1, "live"},
+    {KEY_F2, "blind"},
+    {KEY_F3, "flexichannel_mode"},
+    {KEY_F4, "format"},
+    {KEY_F5, "expand"},
+    {KEY_F6, "staging_mode"}
+
+};
 
 void ShowUpdatedDeviceListInfo(void);
 void OnRawPress(uint8_t);
@@ -249,17 +422,28 @@ void loop() {
     }
   }
 
+  if (tcp.available()) {
+    while (tcp.available()) {
+      tcp.read();
+    }
+  }
+
   if (state_changed) {
     state_changed = false;
     digitalWrite(LED_BUILTIN, HIGH);
     ledLastOn = millis();
+    Serial.println("State changed, sending commands");
     if (!unprocessedKeyUp.empty()) {
       for (auto key : unprocessedKeyUp) {
         Serial.print("Need to send a key UP for: ");
-        auto command = keyToCommand[key];
-        keyToCommand.erase(key);
-        Serial.println(command.c_str());
-        sendRemoteCommand(command.c_str(), false);
+        if (keyToCommand.find(key) != keyToCommand.end()) {
+          auto command = keyToCommand.at(key);
+          keyToCommand.erase(key);
+          Serial.println(command.c_str());
+          sendRemoteCommand(command.c_str(), false);
+        } else {
+          Serial.println("Key not down, can't up it");
+        }
       }
       unprocessedKeyUp.clear();
     }
@@ -303,6 +487,51 @@ void OnHIDExtrasRelease(uint32_t top, uint16_t key) {
   Serial.print(") key release:");
   Serial.println(key, HEX);
 #endif
+}
+std::string rawKeytoOSCCommand(uint8_t keycode) {
+  //  we use the modifiers here
+  // 0 (Left Control)
+  // 1(Left Shift)
+  // 2 (Left Alt)
+  // 3 (Left GUI)
+  // 4 (Right Control)
+  // 5 (Right Shift)
+  // 6 (Right Alt)
+  // 7 (Right GUI)
+  // we only care about shift, control, alt, and we don't care about which one
+  Serial.println(keyboard_modifiers, HEX);
+  const bool CONTROL_PRESSED = keyboard_modifiers & 0b00010001;
+  const bool SHIFT_PRESSED = keyboard_modifiers & 0b00100010;
+  const bool ALT_PRESSED = keyboard_modifiers & 0b01000100;
+
+  uint16_t matcher;
+  if (keycode >= 103 && keycode < 111) {
+    uint8_t keybit = 1 << (keycode - 103);
+    matcher = keybit | 0xE000;
+  } else
+    matcher = keycode | 0xF000;
+
+  if (CONTROL_PRESSED || SHIFT_PRESSED || ALT_PRESSED) {
+    matcher |= CONTROL_PRESSED << 9;
+    matcher |= SHIFT_PRESSED << 10;
+    matcher |= ALT_PRESSED << 11;
+  }
+  std::string key_equal;
+  if (!(KeyCombosToCommands.find(matcher) == KeyCombosToCommands.end())) {
+    key_equal = KeyCombosToCommands.at(matcher);
+    //  try again but with no modifiers
+  } else if (!(KeyCombosToCommands.find(keycode | 0xF000) ==
+               KeyCombosToCommands.end())) {
+    key_equal = KeyCombosToCommands.at(matcher);
+
+  } else {
+    key_equal = "";
+  }
+  if (!key_equal.empty()) {
+    Serial.print("Key Equal: ");
+    Serial.println(key_equal.c_str());
+  }
+  return key_equal;
 }
 
 std::string rawKeyToStringPassThrough(uint8_t keycode) {
@@ -587,27 +816,21 @@ std::string rawKeyToStringPassThrough(uint8_t keycode) {
 }
 
 void OnRawPress(uint8_t keycode) {
-  const std::string keypressed = rawKeyToStringPassThrough(keycode);
-  keyToCommand[keycode] = keypressed;
-  unprocessedKeyDown.insert(keypressed);
-  state_changed = true;
-  if (keypressed == "CapsLock") {
-    // this is capslock, so lets toggle the LED
-    const bool invertState = keyboard1.capsLock();
-    Serial.printf("CapsLock pressed, current LED state: %s\n",
-                  invertState ? "true" : "false");
-    Serial.printf("CapsLock pressed, inverted LED state: %s\n",
-                  !invertState ? "true" : "false");
-    keyboard1.capsLock(!invertState);
-    const bool newState = keyboard1.capsLock();
-    Serial.printf("CapsLock pressed, inverted LED state: %s\n",
-                  !newState ? "true" : "false");
+  const std::string keypressed = rawKeytoOSCCommand(keycode);
+  Serial.println(!keypressed.empty() ? "Key Pressed" : "Key is empty");
+  if (!keypressed.empty()) {
+    keyToCommand[keycode] = keypressed;
+    unprocessedKeyDown.insert(keypressed);
+    state_changed = true;
+  } else {
+    Serial.println("Key not found in map ; but why do we error??");
+    Serial.print("Odd keycode? ");
+    Serial.println(keycode);
   }
   if (keycode >= 103 && keycode < 111) {
     // one of the modifier keys was pressed, so lets turn it
     // on global..
-    uint8_t keybit = 1 << (keycode - 103);
-    keyboard_modifiers |= keybit;
+    keyboard_modifiers |= 1 << (keycode - 103);
   }
 #ifdef SHOW_KEYBOARD_DATA
   Serial.print("OnRawPress keycode: ");
@@ -618,13 +841,13 @@ void OnRawPress(uint8_t keycode) {
 }
 
 void OnRawRelease(uint8_t keycode) {
-  unprocessedKeyUp.insert(keycode);
-  state_changed = true;
   if (keycode >= 103 && keycode < 111) {
     // one of the modifier keys was pressed, so lets turn it
     // on global..
-    uint8_t keybit = 1 << (keycode - 103);
-    keyboard_modifiers &= ~keybit;
+    keyboard_modifiers &= ~(1 << (keycode - 103));
+  } else {
+    unprocessedKeyUp.insert(keycode);
+    state_changed = true;
   }
 #ifdef SHOW_KEYBOARD_DATA
   Serial.print("OnRawRelease keycode: ");
@@ -637,7 +860,6 @@ void OnRawRelease(uint8_t keycode) {
 //=============================================================
 // Device and Keyboard Output To Serial objects...
 //=============================================================
-#ifdef SHOW_KEYBOARD_DATA
 USBDriver *drivers[] = {&hub1, &hid1, &hid2, &hid3, &bluet};
 #define CNT_DEVICES (sizeof(drivers) / sizeof(drivers[0]))
 const char *driver_names[CNT_DEVICES] = {"Hub1", "HID1", "HID2", "HID3",
@@ -655,10 +877,7 @@ BTHIDInput *bthiddrivers[] = {&keyboard1};
 const char *bthid_driver_names[CNT_HIDDEVICES] = {"KB(BT)"};
 bool bthid_driver_active[CNT_HIDDEVICES] = {false};
 
-#endif
-
 void ShowUpdatedDeviceListInfo() {
-#ifdef SHOW_KEYBOARD_DATA
   for (uint8_t i = 0; i < CNT_DEVICES; i++) {
     if (*drivers[i] != driver_active[i]) {
       if (driver_active[i]) {
@@ -741,8 +960,6 @@ void ShowUpdatedDeviceListInfo() {
       }
     }
   }
-
-#endif
 }
 
 void ShowHIDExtrasPress(uint32_t top, uint16_t key) {
