@@ -48,8 +48,12 @@ uint8_t keyboard_last_leds = 0;
 
 bool gotIP = false;
 IPAddress ip;
-IPAddress DEST_IP = IPAddress(10, 101, 67, 117);
+IPAddress DEST_IP = IPAddress(10, 101, 1, 101);
 uint16_t outPort = 6379;
+
+IPAddress staticIP(10, 101, 101, 104);
+IPAddress staticSubnetMask(255, 255, 0, 0);
+int fallbackWaitTime = 6000UL;
 
 void ShowUpdatedDeviceListInfo(void);
 void OnRawPress(uint8_t);
@@ -70,6 +74,26 @@ void sendRemoteCommand(const char key[], bool isDown) {
   msg.send(udp);   // send the bytes to the SLIP stream
   udp.endPacket(); // mark the end of the OSC Packet
   msg.empty();     // free space occupied by message
+}
+
+void getEthernetIPFromNetwork() {
+  if (!!Ethernet.localIP() && Ethernet.linkState()) {
+    return;
+  }
+  if (!Ethernet.begin()) {
+    Serial.println("ERROR: Failed to start Ethernet");
+    return;
+  }
+
+  if (!Ethernet.waitForLink(fallbackWaitTime)) {
+    Serial.println("Ethernet link is not up");
+    return;
+  }
+
+  if (!Ethernet.waitForLocalIP(fallbackWaitTime)) {
+    Serial.println("Failed to get IP address, trying static");
+    Ethernet.begin(staticIP, staticSubnetMask, INADDR_NONE);
+  }
 }
 
 void setup() {
@@ -106,6 +130,7 @@ void setup() {
       Serial.println("[Ethernet] Link ON");
     } else {
       Serial.println("[Ethernet] Link OFF");
+      gotIP = false;
     }
   });
 
@@ -120,6 +145,7 @@ void setup() {
       ip = Ethernet.localIP();
       Serial.printf("    Local IP     = %u.%u.%u.%u\r\n", ip[0], ip[1], ip[2],
                     ip[3]);
+      Serial.println(Ethernet.isDHCPActive() ? "    DHCP" : "    Static IP");
       ip = Ethernet.subnetMask();
       Serial.printf("    Subnet mask  = %u.%u.%u.%u\r\n", ip[0], ip[1], ip[2],
                     ip[3]);
@@ -134,16 +160,15 @@ void setup() {
                     ip[3]);
     } else {
       Serial.println("[Ethernet] Address changed: No IP");
+      gotIP = false;
     }
   });
 
   Serial.println();
   Serial.println("[Start]");
   Serial.println("Starting Ethernet with DHCP...");
-  if (!Ethernet.begin()) {
-    Serial.println("ERROR: Failed to start Ethernet");
-    return;
-  }
+  Ethernet.setHostname("EOS-keyboard-41");
+  getEthernetIPFromNetwork();
 
   Serial.printf("UDP set up to %u\r\n", outPort);
 
@@ -155,6 +180,11 @@ uint16_t lastKey = 0;
 void loop() {
   myusb.Task();
   ShowUpdatedDeviceListInfo();
+
+  if (!gotIP) {
+    getEthernetIPFromNetwork();
+  }
+
   if (state_changed) {
     state_changed = false;
     digitalWrite(LED_BUILTIN, HIGH);
@@ -494,12 +524,19 @@ void OnRawPress(uint8_t keycode) {
   const std::string keypressed = rawKeyToStringPassThrough(keycode);
   unprocessedKeyDown.insert(keypressed);
   state_changed = true;
-#ifdef KEYBOARD_INTERFACE
-  if (keyboard_leds != keyboard_last_leds) {
-    Serial.printf("New LEDS: %x\n", keyboard_leds);
-    keyboard_last_leds = keyboard_leds;
-    keyboard1.LEDS(keyboard_leds);
+  if (keypressed == "CapsLock") {
+    // this is capslock, so lets toggle the LED
+    const bool invertState = keyboard1.capsLock();
+    Serial.printf("CapsLock pressed, current LED state: %s\n",
+                  invertState ? "true" : "false");
+    Serial.printf("CapsLock pressed, inverted LED state: %s\n",
+                  !invertState ? "true" : "false");
+    keyboard1.capsLock(!invertState);
+    const bool newState = keyboard1.capsLock();
+    Serial.printf("CapsLock pressed, inverted LED state: %s\n",
+                  !newState ? "true" : "false");
   }
+#ifdef KEYBOARD_INTERFACE
   if (keycode >= 103 && keycode < 111) {
     // one of the modifier keys was pressed, so lets turn it
     // on global..
