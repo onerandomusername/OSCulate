@@ -522,7 +522,7 @@ std::string rawKeytoOSCCommand(uint8_t keycode) {
     //  try again but with no modifiers
   } else if (!(KeyCombosToCommands.find(keycode | 0xF000) ==
                KeyCombosToCommands.end())) {
-    key_equal = KeyCombosToCommands.at(matcher);
+    key_equal = KeyCombosToCommands.at(keycode | 0xF000);
 
   } else {
     key_equal = "";
