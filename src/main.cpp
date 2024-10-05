@@ -8,6 +8,7 @@
 #include <QNEthernet.h>
 #include <USBHost_t36.h>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 
 using namespace qindesign::network;
@@ -46,8 +47,13 @@ USBHIDParser hid3(myusb);
 uint8_t keyboard_modifiers = 0; // try to keep a reasonable value
 
 std::unordered_set<std::string> unprocessedKeyDown;
-std::unordered_set<std::string> unprocessedKeyUp;
-std::unordered_set<std::string> keysDownOnHost;
+std::unordered_set<uint16_t> unprocessedKeyUp;
+/// @brief Map of key codes to OSC commands that are currently pressed.
+/// @details This map is used to map key codes to OSC commands. The key codes
+/// are the USB HID key codes. The OSC commands are the OSC commands that will
+/// be sent to the remote device when the key is pressed or released.
+/// these are the key codes that are currently pressed.
+std::unordered_map<std::uint16_t, std::string> keyToCommand;
 bool state_changed = false;
 
 #ifdef KEYBOARD_INTERFACE
@@ -250,8 +256,10 @@ void loop() {
     if (!unprocessedKeyUp.empty()) {
       for (auto key : unprocessedKeyUp) {
         Serial.print("Need to send a key UP for: ");
-        Serial.println(key.c_str());
-        sendRemoteCommand(key.c_str(), false);
+        auto command = keyToCommand[key];
+        keyToCommand.erase(key);
+        Serial.println(command.c_str());
+        sendRemoteCommand(command.c_str(), false);
       }
       unprocessedKeyUp.clear();
     }
@@ -580,6 +588,7 @@ std::string rawKeyToStringPassThrough(uint8_t keycode) {
 
 void OnRawPress(uint8_t keycode) {
   const std::string keypressed = rawKeyToStringPassThrough(keycode);
+  keyToCommand[keycode] = keypressed;
   unprocessedKeyDown.insert(keypressed);
   state_changed = true;
   if (keypressed == "CapsLock") {
@@ -594,25 +603,12 @@ void OnRawPress(uint8_t keycode) {
     Serial.printf("CapsLock pressed, inverted LED state: %s\n",
                   !newState ? "true" : "false");
   }
-#ifdef KEYBOARD_INTERFACE
   if (keycode >= 103 && keycode < 111) {
     // one of the modifier keys was pressed, so lets turn it
     // on global..
     uint8_t keybit = 1 << (keycode - 103);
     keyboard_modifiers |= keybit;
-    Keyboard.set_modifier(keyboard_modifiers);
-  } else {
-    if (keyboard1.getModifiers() != keyboard_modifiers) {
-#ifdef SHOW_KEYBOARD_DATA
-      Serial.printf("Mods mismatch: %x != %x\n", keyboard_modifiers,
-                    keyboard1.getModifiers());
-#endif
-      keyboard_modifiers = keyboard1.getModifiers();
-      Keyboard.set_modifier(keyboard_modifiers);
-    }
-    Keyboard.press(0XF000 | keycode);
   }
-#endif
 #ifdef SHOW_KEYBOARD_DATA
   Serial.print("OnRawPress keycode: ");
   Serial.print(keycode, HEX);
@@ -622,19 +618,14 @@ void OnRawPress(uint8_t keycode) {
 }
 
 void OnRawRelease(uint8_t keycode) {
-  unprocessedKeyUp.insert(rawKeyToStringPassThrough(keycode));
+  unprocessedKeyUp.insert(keycode);
   state_changed = true;
-#ifdef KEYBOARD_INTERFACE
   if (keycode >= 103 && keycode < 111) {
     // one of the modifier keys was pressed, so lets turn it
     // on global..
     uint8_t keybit = 1 << (keycode - 103);
     keyboard_modifiers &= ~keybit;
-    Keyboard.set_modifier(keyboard_modifiers);
-  } else {
-    Keyboard.release(0XF000 | keycode);
   }
-#endif
 #ifdef SHOW_KEYBOARD_DATA
   Serial.print("OnRawRelease keycode: ");
   Serial.print(keycode, HEX);
