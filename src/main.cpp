@@ -463,8 +463,8 @@ void loop() {
     getEthernetIPFromNetwork();
   }
   if (!tcp.connectionId()) {
-    if (sinceLastConnectAttempt > 1000) {
-      elapsedMillis sinceLastConnectAttempt;
+    if (sinceLastConnectAttempt > 3000) {
+      sinceLastConnectAttempt = 0;
       connectToLXConsole();
     }
   }
@@ -483,13 +483,14 @@ void loop() {
     if (!unprocessedKeyUp.empty()) {
       for (auto key : unprocessedKeyUp) {
         Serial.print("Need to send a key UP for: ");
+        Serial.println(key);
         if (keyToCommand.find(key) != keyToCommand.end()) {
           auto command = keyToCommand.at(key);
           keyToCommand.erase(key);
           Serial.println(command.c_str());
           sendRemoteCommand(command.c_str(), false);
         } else {
-          Serial.println("Key not down, can't up it");
+          Serial.println("Key not down, can't up ");
         }
       }
       unprocessedKeyUp.clear();
