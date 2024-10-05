@@ -30,6 +30,8 @@ u_int32_t ledLastOn = 0;
 EthernetClient tcp = EthernetClient();
 SLIPEncodedTCP slip(tcp);
 
+elapsedMillis sinceLastConnectAttempt;
+
 USBHost myusb;
 USBHub hub1(myusb);
 KeyboardController keyboard1(myusb);
@@ -136,6 +138,7 @@ bool connectToLXConsole() {
     if (!tcp.connect(DEST_IP, outPort)) {
       return false;
     }
+    tcp.setConnectionTimeout(600);
     Serial.println("Connected to LX console.");
   }
   return true;
@@ -176,7 +179,10 @@ void setup() {
     } else {
       Serial.println("[Ethernet] Link OFF");
       gotIP = false;
-      tcp.abort();
+      if (tcp) {
+        tcp.abort();
+        Serial.println("[Ethernet] Aborted TCP Connection");
+      }
     }
   });
 
@@ -229,6 +235,12 @@ void loop() {
 
   if (!gotIP) {
     getEthernetIPFromNetwork();
+  }
+  if (!tcp.connectionId()) {
+    if (sinceLastConnectAttempt > 1000) {
+      elapsedMillis sinceLastConnectAttempt;
+      connectToLXConsole();
+    }
   }
 
   if (state_changed) {
