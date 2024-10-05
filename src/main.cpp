@@ -2,6 +2,7 @@
 //
 // This example is in the public domain
 
+#include "SLIPEncodedTCP.h"
 #include <Arduino.h>
 #include <OSCMessage.h>
 #include <QNEthernet.h>
@@ -15,11 +16,19 @@ using namespace qindesign::network;
 // not show the keyboard data on Serial...
 #define SHOW_KEYBOARD_DATA
 
+enum class OSCVersion {
+  PacketLength,
+  SLIP,
+};
+
+OSCVersion oscversion = OSCVersion::PacketLength;
 const char addressPrefix[] = "/keypress/";
 
 u_int32_t ledLastOn = 0;
 
-EthernetUDP udp = EthernetUDP(1);
+// TCPConnection
+EthernetClient tcp = EthernetClient();
+SLIPEncodedTCP slip(tcp);
 
 USBHost myusb;
 USBHub hub1(myusb);
@@ -51,7 +60,7 @@ IPAddress ip;
 IPAddress DEST_IP = IPAddress(10, 101, 1, 101);
 uint16_t outPort = 6379;
 
-IPAddress staticIP(10, 101, 101, 104);
+IPAddress staticIP(10, 101, 1, 104);
 IPAddress staticSubnetMask(255, 255, 0, 0);
 int fallbackWaitTime = 6000UL;
 
@@ -62,6 +71,25 @@ void OnHIDExtrasPress(uint32_t, uint16_t);
 void OnHIDExtrasRelease(uint32_t, uint16_t);
 void ShowHIDExtrasPress(uint32_t, uint16_t);
 
+void sendOSCviaPacketLength(OSCMessage &msg) {
+  uint8_t buffer[4];
+  const auto len = msg.bytes();
+  // make the first four bytes the count of len
+  buffer[0] = (len >> 24) & 0xFF;
+  buffer[1] = (len >> 16) & 0xFF;
+  buffer[2] = (len >> 8) & 0xFF;
+  buffer[3] = len & 0xFF;
+  tcp.write(buffer, 4);
+  msg.send(tcp);
+  tcp.flush();
+}
+
+void sendOSCviaSLIP(OSCMessage &msg) {
+  slip.beginPacket();
+  msg.send(slip);
+  slip.endPacket();
+}
+
 void sendRemoteCommand(const char key[], bool isDown) {
   Serial.print("Got key: ");
   Serial.println(key);
@@ -70,30 +98,47 @@ void sendRemoteCommand(const char key[], bool isDown) {
   OSCMessage msg(address.c_str());
   msg.add(isDown ? 1.0 : 0.0);
   Serial.printf("Address: %s\r\n", address.c_str());
-  udp.beginPacket(DEST_IP, outPort);
-  msg.send(udp);   // send the bytes to the SLIP stream
-  udp.endPacket(); // mark the end of the OSC Packet
-  msg.empty();     // free space occupied by message
+
+  if (oscversion == OSCVersion::SLIP) {
+    sendOSCviaSLIP(msg);
+  } else {
+    sendOSCviaPacketLength(msg);
+  }
+
+  msg.empty(); // free space occupied by message
 }
 
-void getEthernetIPFromNetwork() {
+bool getEthernetIPFromNetwork() {
   if (!!Ethernet.localIP() && Ethernet.linkState()) {
-    return;
+    return false;
   }
   if (!Ethernet.begin()) {
     Serial.println("ERROR: Failed to start Ethernet");
-    return;
+    return false;
   }
 
   if (!Ethernet.waitForLink(fallbackWaitTime)) {
     Serial.println("Ethernet link is not up");
-    return;
+    return false;
   }
 
   if (!Ethernet.waitForLocalIP(fallbackWaitTime)) {
     Serial.println("Failed to get IP address, trying static");
     Ethernet.begin(staticIP, staticSubnetMask, INADDR_NONE);
   }
+
+  Serial.println("Ethernet started");
+  return !!Ethernet.localIP();
+}
+
+bool connectToLXConsole() {
+  if (!tcp.connectionId()) {
+    if (!tcp.connect(DEST_IP, outPort)) {
+      return false;
+    }
+    Serial.println("Connected to LX console.");
+  }
+  return true;
 }
 
 void setup() {
@@ -131,6 +176,7 @@ void setup() {
     } else {
       Serial.println("[Ethernet] Link OFF");
       gotIP = false;
+      tcp.abort();
     }
   });
 
@@ -168,9 +214,9 @@ void setup() {
   Serial.println("[Start]");
   Serial.println("Starting Ethernet with DHCP...");
   Ethernet.setHostname("EOS-keyboard-41");
-  getEthernetIPFromNetwork();
 
-  Serial.printf("UDP set up to %u\r\n", outPort);
+  getEthernetIPFromNetwork();
+  connectToLXConsole();
 
   digitalWrite(LED_BUILTIN, LOW);
 }

@@ -9,7 +9,7 @@ import atexit
 
 import ahk
 import ahk.keys
-from pythonosc import osc_server
+from pythonosc import osc_tcp_server
 from pythonosc.dispatcher import Dispatcher
 
 AHK = ahk.AHK()
@@ -66,6 +66,13 @@ if __name__ == "__main__":
     parser.add_argument("--ip", default="0.0.0.0", help="The ip to listen on")
     parser.add_argument("--port", type=int, default=6379, help="The port to listen on")
     parser.add_argument("--autohotkey", action="store_true", help="Enable AutoHotkey")
+    parser.add_argument(
+        "--slip",
+        action="store_const",
+        const="1.1",
+        default="1.0",
+        help="Which version of OSC to use, provide to use 1.1",
+    )
     args = parser.parse_args()
 
     ENABLE_AUTOHOTKEY = args.autohotkey or False
@@ -74,11 +81,13 @@ if __name__ == "__main__":
     dispatcher.map("/keypress/*", send_keypress, needs_reply_address=True)
     dispatcher.set_default_handler(print_log, needs_reply_address=True)
 
-    server = osc_server.ThreadingOSCUDPServer((args.ip, args.port), dispatcher)
+    server = osc_tcp_server.ThreadingOSCTCPServer(
+        (args.ip, args.port),
+        dispatcher,
+        mode=args.slip,
+    )
     print("Serving on {0}:{1}".format(*server.server_address))
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        server.shutdown()
-        server.server_close()
         print("Server closed")
