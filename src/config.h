@@ -25,9 +25,25 @@ const int TCPConnectionCheckTime = 4000L;
 const char HOSTNAME[] = "EOS-Keyboard-T41";
 
 // constants for key combos
+//  we use the modifiers here
+// 0 (Left Control)
+// 1(Left Shift)
+// 2 (Left Alt)
+// 3 (Left GUI)
+// 4 (Right Control)
+// 5 (Right Shift)
+// 6 (Right Alt)
+// 7 (Right GUI)
+// we only care about shift, control, alt, and we don't care about which one
 const uint16_t CTRL = 1 << 9;
 const uint16_t SHIFT = 1 << 10;
 const uint16_t ALT = 1 << 11;
+/// @brief Key combo to eos command mapping
+/// @details This is a map of key combos to eos commands. CTRL, ALT, and SHIFT
+/// are defined as the bits in the following map: 0b000 0111 0000 0000. The
+/// first 4 bits and final 8 bits are the key code but due to the fact that bits
+/// 5 to 8 of a key code are always zero, we use that space for our bitmap.
+/// I am aware these are cursed implementation details.
 const std::unordered_map<std::uint16_t, std::string> KeyCombosToCommands = {
     {KEY_A, "at"},
     {KEY_A | CTRL, "select_active"},

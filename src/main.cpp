@@ -281,16 +281,6 @@ void loop() {
 }
 
 std::string rawKeytoOSCCommand(uint8_t keycode) {
-  //  we use the modifiers here
-  // 0 (Left Control)
-  // 1(Left Shift)
-  // 2 (Left Alt)
-  // 3 (Left GUI)
-  // 4 (Right Control)
-  // 5 (Right Shift)
-  // 6 (Right Alt)
-  // 7 (Right GUI)
-  // we only care about shift, control, alt, and we don't care about which one
   Serial.println(keyboard_modifiers, HEX);
   const bool CONTROL_PRESSED = keyboard_modifiers & 0b00010001;
   const bool SHIFT_PRESSED = keyboard_modifiers & 0b00100010;
