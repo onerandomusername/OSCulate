@@ -5,9 +5,11 @@
 #include "SLIPEncodedTCP.h"
 #include "config.h"
 #include <Arduino.h>
+#include <OSCBundle.h>
 #include <OSCMessage.h>
 #include <QNEthernet.h>
 #include <USBHost_t36.h>
+#include <list>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -105,6 +107,66 @@ void sendRemoteCommand(const char key[], bool isDown) {
   msg.empty(); // free space occupied by message
 }
 
+// this BLOCKING method is a contained routine for getting the IP address from
+// the network.
+
+/// @brief
+/// @return
+bool getLXConsoleIP() {
+  Serial.println("Looking for consoles");
+  EthernetUDP udp = EthernetUDP();
+  udp.begin(3035);
+
+  udp.beginPacket(IPAddress(255, 255, 255, 255), 3034);
+  // the content of the packet must be exactly this for eos detection
+  // undocumented protocol that we don't really have documentation for
+  unsigned char bytes[] = {0x2f, 0x65, 0x74, 0x63, 0x2f, 0x64, 0x69, 0x73, 0x63,
+                           0x6f, 0x76, 0x65, 0x72, 0x79, 0x2f, 0x72, 0x65, 0x71,
+                           0x75, 0x65, 0x73, 0x74, 0x0,  0x0,  0x2c, 0x69, 0x73,
+                           0x0,  0x0,  0x0,  0xb,  0xdb, 0x52, 0x46, 0x52, 0x20,
+                           0x4f, 0x53, 0x43, 0x20, 0x44, 0x69, 0x73, 0x63, 0x6f,
+                           0x76, 0x65, 0x72, 0x79, 0x0,  0x0,  0x0};
+  udp.write(bytes, sizeof(bytes));
+  udp.endPacket();
+  Serial.println("Sent discovery request to broadcast.");
+
+  std::list<IPAddress> foundIPs;
+  // we'll timeout if we don't get any replies
+  elapsedMillis timeout = 0;
+  OSCBundle bundleIN;
+  int size;
+  while (timeout < 5000) {
+    if ((size = udp.parsePacket()) > 0) {
+      Serial.println("Found a console. Maybe. I don't know anymore.");
+      while (size--)
+        bundleIN.fill(udp.read());
+
+      if (!bundleIN.hasError())
+        // honestly too tired to do this right
+        // we should parse the entire response
+        // but frankly for now i'm assuming if they reply they're a console
+        // this does not support a priorty console which is the next goal.
+        foundIPs.push_back(udp.remoteIP());
+    }
+  };
+
+  if (foundIPs.size() == 0) {
+    Serial.println("No consoles found");
+    return false;
+  }
+
+  if (foundIPs.size() > 1) {
+    Serial.println("Multiple consoles found, using first");
+  }
+
+  DEST_IP = foundIPs.front();
+  Serial.print("Found console at: ");
+  Serial.printf(" %u.%u.%u.%u\r\n", DEST_IP[0], DEST_IP[1], DEST_IP[2],
+                DEST_IP[3]);
+
+  return true;
+}
+
 bool getEthernetIPFromNetwork() {
   if (!!Ethernet.localIP() && Ethernet.linkState()) {
     return false;
@@ -130,6 +192,9 @@ bool getEthernetIPFromNetwork() {
 
 bool connectToLXConsole() {
   if (!tcp.connectionId()) {
+    Serial.print("Connecting to LX console at: ");
+    Serial.printf(" %u.%u.%u.%u\r\n", DEST_IP[0], DEST_IP[1], DEST_IP[2],
+                  DEST_IP[3]);
     if (!tcp.connect(DEST_IP, outPort)) {
       return false;
     }
@@ -217,6 +282,8 @@ void setup() {
   Ethernet.setHostname(HOSTNAME);
 
   getEthernetIPFromNetwork();
+
+  getLXConsoleIP();
   connectToLXConsole();
 
   digitalWrite(LED_BUILTIN, LOW);

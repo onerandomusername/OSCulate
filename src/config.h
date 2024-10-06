@@ -14,7 +14,7 @@ enum class OSCVersion {
 OSCVersion oscversion = OSCVersion::PacketLength;
 
 IPAddress DEST_IP = IPAddress(10, 101, 1, 101);
-uint16_t outPort = 3032;
+uint16_t outPort = 3036;
 
 IPAddress staticSubnetMask(255, 255, 0, 0);
 IPAddress staticIP = IPAddress(10, 101, 1, 104);
