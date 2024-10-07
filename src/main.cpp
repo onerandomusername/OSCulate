@@ -22,7 +22,7 @@ using namespace qindesign::network;
 
 const char addressPrefix[] = "/eos/key/";
 
-u_int32_t ledLastOn = 0;
+uint32_t ledLastOn = 0;
 
 // TCPConnection
 EthernetClient tcp = EthernetClient();
