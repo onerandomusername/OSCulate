@@ -1,7 +1,3 @@
-// Simple USB Keyboard Forwarder
-//
-// This example is in the public domain
-
 #include "SLIPEncodedTCP.h"
 #include "config.h"
 #include <Arduino.h>
@@ -16,52 +12,63 @@
 
 using namespace qindesign::network;
 
-// You can have this one only output to the USB type Keyboard and
-// not show the keyboard data on Serial...
+// Debugging statement for showing keyboard data
 // #define SHOW_KEYBOARD_DATA
 
+// The prefix for the OSC address that we will send to the console.
 const char addressPrefix[] = "/eos/key/";
 
+// last time the internal LED was turned on
 uint32_t ledLastOn = 0;
 
 // TCPConnection
 EthernetClient tcp = EthernetClient();
 SLIPEncodedTCP slip(tcp);
 
+// time since last connection attempt
 elapsedMillis sinceLastConnectAttempt;
 
+// USB Host
 USBHost myusb;
 USBHub hub1(myusb);
 KeyboardController keyboard1(myusb);
-// BluetoothController bluet(myusb, true, "0000");   // Version does pairing to
-// device
-BluetoothController bluet(myusb); // version assumes it already was paired
 
 USBHIDParser hid1(myusb);
 USBHIDParser hid2(myusb);
 USBHIDParser hid3(myusb);
 
+// modifier keys, stored as a bitfield
+// from bits 1<<0 to 1<<7:
+// 0 (Left Control)
+// 1 (Left Shift)
+// 2 (Left Alt)
+// 3 (Left GUI)
+// 4 (Right Control)
+// 5 (Right Shift)
+// 6 (Right Alt)
+// 7 (Right GUI)
 uint8_t keyboard_modifiers = 0; // try to keep a reasonable value
 
+// unprocessed key presses
+// we cannot call a network function from the interrupt when a key is pressed in
+// our callbacks. so we need to store the key presses and releases in a set and
+// then process them in the main loop.
 std::unordered_set<std::string> unprocessedKeyDown;
 std::unordered_set<uint16_t> unprocessedKeyUp;
+// if there's anything in unprocessedKeyUp or unprocessedKeyDown, we need to
+// send it.
+bool state_changed = false;
 /// @brief Map of key codes to OSC commands that are currently pressed.
-/// @details This map is used to map key codes to OSC commands. The key codes
+/// This is used to map key codes to OSC commands. The key codes
 /// are the USB HID key codes. The OSC commands are the OSC commands that will
 /// be sent to the remote device when the key is pressed or released.
 /// these are the key codes that are currently pressed.
 std::unordered_map<std::uint16_t, std::string> keyToCommand;
-bool state_changed = false;
 
-#ifdef KEYBOARD_INTERFACE
 uint8_t keyboard_last_leds = 0;
-// #elif !defined(SHOW_KEYBOARD_DATA)
-// #Warning: "USB type does not have Serial, so turning on SHOW_KEYBOARD_DATA"
-// #define SHOW_KEYBOARD_DATA
-#endif
 
+// whether we have an IP address or not
 bool gotIP = false;
-IPAddress ip;
 
 void ShowUpdatedDeviceListInfo(void);
 void OnRawPress(uint8_t);
@@ -70,6 +77,8 @@ void OnHIDExtrasPress(uint32_t, uint16_t);
 void OnHIDExtrasRelease(uint32_t, uint16_t);
 void ShowHIDExtrasPress(uint32_t, uint16_t);
 
+/// @brief Send an OSC message over the network using OSC v1.0 over TCP.
+/// @param msg The OSCMessage to send.
 void sendOSCviaPacketLength(OSCMessage &msg) {
   uint8_t buffer[4];
   const auto len = msg.bytes();
@@ -83,12 +92,18 @@ void sendOSCviaPacketLength(OSCMessage &msg) {
   tcp.flush();
 }
 
+/// @brief Send an OSC message over the network using OSC v1.1 over TCP.
+/// @param msg The OSCMessage to send.
 void sendOSCviaSLIP(OSCMessage &msg) {
   slip.beginPacket();
   msg.send(slip);
   slip.endPacket();
 }
 
+/// @brief Send the Eos key to the console over OSC.
+/// @param key the key that was pressed. This should be the already formatted
+/// Eos key, eg "at"
+/// @param isDown Whether the key was just pressed down or just released.
 void sendRemoteCommand(const char key[], bool isDown) {
   Serial.print("Got key: ");
   Serial.println(key);
@@ -107,11 +122,10 @@ void sendRemoteCommand(const char key[], bool isDown) {
   msg.empty(); // free space occupied by message
 }
 
-// this BLOCKING method is a contained routine for getting the IP address from
-// the network.
-
-/// @brief
-/// @return
+/// @brief Get the IP address of an L console from the network.
+/// @return true if an IP address was found, false otherwise.
+/// this BLOCKING method is a contained routine for getting the IP address from
+/// the network.
 bool getLXConsoleIP() {
   Serial.println("Looking for consoles");
   EthernetUDP udp = EthernetUDP();
@@ -167,6 +181,10 @@ bool getLXConsoleIP() {
   return true;
 }
 
+/// @brief Start Ethernet and secure an IP from DHCP or fallback to our
+/// preconfigured Static IP.
+/// @return true if networking is properly started and we have an IP address,
+/// false otherwise.
 bool getEthernetIPFromNetwork() {
   if (!!Ethernet.localIP() && Ethernet.linkState()) {
     return false;
@@ -190,6 +208,8 @@ bool getEthernetIPFromNetwork() {
   return !!Ethernet.localIP();
 }
 
+/// @brief Connect to the LX console over TCP.
+/// @return Whether the connection was successful.
 bool connectToLXConsole() {
   if (!tcp.connectionId()) {
     Serial.print("Connecting to LX console at: ");
@@ -347,6 +367,9 @@ void loop() {
   }
 }
 
+/// @brief Convert a keypress into the OSC Key that Eos expects.
+/// @param keycode the raw keycode that was pressed on a keyboard.
+/// @return The OSC key that corresponds to the keypress.
 std::string rawKeytoOSCCommand(uint8_t keycode) {
   Serial.println(keyboard_modifiers, HEX);
   const bool CONTROL_PRESSED = keyboard_modifiers & 0b00010001;
@@ -372,7 +395,6 @@ std::string rawKeytoOSCCommand(uint8_t keycode) {
   } else if (!(KeyCombosToCommands.find(keycode | 0xF000) ==
                KeyCombosToCommands.end())) {
     key_equal = KeyCombosToCommands.at(keycode | 0xF000);
-
   } else {
     key_equal = "";
   }
@@ -383,6 +405,9 @@ std::string rawKeytoOSCCommand(uint8_t keycode) {
   return key_equal;
 }
 
+/// @brief Return the name of the key that was pressed
+/// @param keycode the raw keycode that was pressed on a keyboard.
+/// @return the name of the pressed key
 std::string rawKeyToStringPassThrough(uint8_t keycode) {
   uint16_t matcher;
   if (keycode >= 103 && keycode < 111) {
@@ -401,6 +426,8 @@ std::string rawKeyToStringPassThrough(uint8_t keycode) {
   return key_equal;
 }
 
+/// @brief Handle a raw key press event from the keyboard.
+/// @param keycode the raw keycode that was pressed on a keyboard.
 void OnRawPress(uint8_t keycode) {
   const std::string keypressed = rawKeytoOSCCommand(keycode);
   Serial.println(!keypressed.empty() ? "Key Pressed" : "Key is empty");
@@ -426,6 +453,8 @@ void OnRawPress(uint8_t keycode) {
 #endif
 }
 
+/// @brief  Handle a raw key release event from the keyboard.
+/// @param keycode the raw keycode that was released on a keyboard.
 void OnRawRelease(uint8_t keycode) {
   if (keycode >= 103 && keycode < 111) {
     // one of the modifier keys was pressed, so lets turn it
@@ -446,10 +475,9 @@ void OnRawRelease(uint8_t keycode) {
 //=============================================================
 // Device and Keyboard Output To Serial objects...
 //=============================================================
-USBDriver *drivers[] = {&hub1, &hid1, &hid2, &hid3, &bluet};
+USBDriver *drivers[] = {&hub1, &hid1, &hid2, &hid3};
 #define CNT_DEVICES (sizeof(drivers) / sizeof(drivers[0]))
-const char *driver_names[CNT_DEVICES] = {"Hub1", "HID1", "HID2", "HID3",
-                                         "BlueTooth"};
+const char *driver_names[CNT_DEVICES] = {"Hub1", "HID1", "HID2", "HID3"};
 bool driver_active[CNT_DEVICES] = {false, false, false};
 
 // Lets also look at HID Input devices
