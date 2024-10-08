@@ -255,6 +255,7 @@ const std::unordered_map<std::uint16_t, std::string> KeyCombosToCommands = {
     {KEY_RIGHT_BRACE | CTRL | ALT, "encoder_category_image"},
     {KEY_PERIOD | ALT, "encoder_category_intensity"},
     {KEY_COMMA | ALT, "encoder_category_shutter"},
+    {KEY_QUOTE | CTRL | ALT, "encoder_custom"},
 
     // custom mapping
     {KEY_F23, "data"} // f23
