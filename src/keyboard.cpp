@@ -1,7 +1,3 @@
-#pragma once
-
-#ifndef keyboard_h
-#define keyboard_h
 
 #include "config.h"
 #include "osc_base.h"
@@ -330,4 +326,3 @@ void updateStatusLights(bool hasIP, bool connectedToConsole) {
     keyboard1.LEDS(ledState.byte);
   }
 }
-#endif // keyboard_h

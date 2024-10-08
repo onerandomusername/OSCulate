@@ -1,7 +1,7 @@
 
 
 #include "config.h"
-#include "keyboard.hpp"
+#include "keyboard.h"
 #include "network.h"
 #include "osc_base.h"
 #include <Arduino.h>
@@ -15,13 +15,6 @@
 
 // last time the internal LED was turned on
 uint32_t ledLastOn = 0;
-
-void ShowUpdatedDeviceListInfo(void);
-void OnRawPress(uint8_t);
-void OnRawRelease(uint8_t);
-void OnHIDExtrasPress(uint32_t, uint16_t);
-void OnHIDExtrasRelease(uint32_t, uint16_t);
-void ShowHIDExtrasPress(uint32_t, uint16_t);
 
 void setup() {
   // configure the built in LED for output
