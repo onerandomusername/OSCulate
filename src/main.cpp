@@ -69,6 +69,7 @@ uint8_t keyboard_last_leds = 0;
 
 // whether we have an IP address or not
 bool gotIP = false;
+bool networkStateChanged = false;
 
 void ShowUpdatedDeviceListInfo(void);
 void OnRawPress(uint8_t);
@@ -220,6 +221,7 @@ bool connectToLXConsole() {
     }
     tcp.setConnectionTimeout(600);
     Serial.println("Connected to LX console.");
+    networkStateChanged = true;
   }
   return true;
 }
@@ -264,6 +266,7 @@ void setup() {
         Serial.println("[Ethernet] Aborted TCP Connection");
       }
     }
+    networkStateChanged = true;
   });
 
   // Watch for address changes
@@ -294,6 +297,7 @@ void setup() {
       Serial.println("[Ethernet] Address changed: No IP");
       gotIP = false;
     }
+    networkStateChanged = true;
   });
 
   Serial.println();
@@ -319,6 +323,7 @@ void loop() {
     getEthernetIPFromNetwork();
   }
   if (!tcp.connectionId()) {
+    networkStateChanged = true;
     if (sinceLastConnectAttempt > TCPConnectionCheckTime) {
       sinceLastConnectAttempt = 0;
       if (!connectToLXConsole()) {
@@ -364,6 +369,26 @@ void loop() {
   }
   if (ledLastOn + 6 < millis()) {
     digitalWrite(LED_BUILTIN, LOW);
+  }
+
+  if (networkStateChanged) {
+    networkStateChanged = false;
+    uint8_t leds = keyboard1.LEDS();
+    if (gotIP) {
+      leds |= 1 << 0;
+    } else {
+      leds &= ~(1 << 0);
+    }
+
+    if (tcp.connectionId()) {
+      leds |= 1 << 2;
+    } else {
+      leds &= ~(1 << 2);
+    }
+
+    if (leds != keyboard1.LEDS()) {
+      keyboard1.LEDS(leds);
+    }
   }
 }
 
