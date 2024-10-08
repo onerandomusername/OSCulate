@@ -1,11 +1,11 @@
 #pragma once
 
-#ifndef Network_h
-#define Network_h
+#ifndef Network_h34
+#define Network_h34
 
-#include "SLIPEncodedSerial.h"
 #include "SLIPEncodedTCP.h"
 #include "config.h"
+#include "osc_base.h"
 #include <Arduino.h>
 #include <OSCBundle.h>
 #include <OSCMessage.h>
@@ -17,8 +17,82 @@ using namespace qindesign::network;
 
 bool networkStateChanged = false;
 
-// The prefix for the OSC address that we will send to the console.
-const char addressPrefix[] = "/eos/key/";
+class TCPConnection : public Connection {
+
+public:
+  TCPConnection(OSCVersion version);
+  TCPConnection(EthernetClient eth, OSCVersion version);
+  bool connectToConsole();
+  void disconnectFromConsole();
+  bool isConnected() { return transport.connected(); };
+  void send(OSCMessage &msg);
+
+  void Task();
+
+private:
+  EthernetClient transport;
+  SLIPEncodedTCP slip;
+
+}; // class TCPConnection
+
+TCPConnection::TCPConnection(OSCVersion version = OSCVersion::SLIP)
+    : transport(), slip(transport) {
+  setOSCVersion(version);
+  transport = EthernetClient();
+  this->slip = SLIPEncodedTCP(transport);
+}
+
+TCPConnection::TCPConnection(EthernetClient eth,
+                             OSCVersion version = OSCVersion::SLIP)
+    : transport(eth), slip(transport) {
+  this->slip = SLIPEncodedTCP(eth);
+  setOSCVersion(version);
+}
+
+void TCPConnection::send(OSCMessage &msg) {
+  this->Task();
+  if (getOSCVersion() == OSCVersion::SLIP) {
+    sendOSCviaSLIP(msg, slip);
+  } else {
+    sendOSCviaPacketLength(msg, transport);
+  }
+}
+
+void TCPConnection::Task() {
+  if (transport.available()) {
+    while (transport.available()) {
+      transport.read();
+    }
+  }
+};
+
+/// @brief Connect to the LX console over TCP.
+/// @return Whether the connection was successful.
+bool TCPConnection::connectToConsole() {
+  if (!transport.connectionId()) {
+    Serial.print("Connecting to LX console at: ");
+    Serial.printf(" %u.%u.%u.%u\r\n", DEST_IP[0], DEST_IP[1], DEST_IP[2],
+                  DEST_IP[3]);
+    if (!transport.connect(DEST_IP, outPort)) {
+      return false;
+    }
+    transport.setConnectionTimeout(600);
+    Serial.println("Connected to LX console.");
+    networkStateChanged = true;
+  }
+  return true;
+};
+
+void TCPConnection::disconnectFromConsole() {
+  if (transport.connected()) {
+    transport.abort();
+    Serial.println("Disconnected from LX console.");
+    networkStateChanged = true;
+  }
+};
+
+TCPConnection conn(OSCVersion::PacketLength);
+OSCClient client(conn);
 
 // time since last connection attempt
 elapsedMillis sinceLastConnectAttempt;
@@ -27,58 +101,13 @@ elapsedMillis sinceLastConnectAttempt;
 bool gotIP = false;
 
 // TCPConnection
-EthernetClient tcp = EthernetClient();
-SLIPEncodedTCP slip(tcp);
-
-/// @brief Send an OSC message over the network using OSC v1.0 over TCP.
-/// @param msg The OSCMessage to send.
-void sendOSCviaPacketLength(OSCMessage &msg) {
-  uint8_t buffer[4];
-  const auto len = msg.bytes();
-  // make the first four bytes the count of len
-  buffer[0] = (len >> 24) & 0xFF;
-  buffer[1] = (len >> 16) & 0xFF;
-  buffer[2] = (len >> 8) & 0xFF;
-  buffer[3] = len & 0xFF;
-  tcp.write(buffer, 4);
-  msg.send(tcp);
-  tcp.flush();
-}
-
-/// @brief Send an OSC message over the network using OSC v1.1 over TCP.
-/// @param msg The OSCMessage to send.
-void sendOSCviaSLIP(OSCMessage &msg) {
-  slip.beginPacket();
-  msg.send(slip);
-  slip.endPacket();
-}
-
-/// @brief Send the Eos key to the console over OSC.
-/// @param key the key that was pressed. This should be the already formatted
-/// Eos key, eg "at"
-/// @param isDown Whether the key was just pressed down or just released.
-void sendRemoteCommand(const char key[], bool isDown) {
-  Serial.print("Got key: ");
-  Serial.println(key);
-  std::string address(addressPrefix);
-  address += key;
-  OSCMessage msg(address.c_str());
-  msg.add(isDown ? 1.0 : 0.0);
-  Serial.printf("Address: %s\r\n", address.c_str());
-
-  if (oscversion == OSCVersion::SLIP) {
-    sendOSCviaSLIP(msg);
-  } else {
-    sendOSCviaPacketLength(msg);
-  }
-
-  msg.empty(); // free space occupied by message
-}
+// EthernetClient tcp = EthernetClient();
+// SLIPEncodedTCP slip(tcp);
 
 /// @brief Get the IP address of an L console from the network.
 /// @return true if an IP address was found, false otherwise.
-/// this BLOCKING method is a contained routine for getting the IP address from
-/// the network.
+/// this BLOCKING method is a contained routine for getting the IP address
+/// from the network.
 bool getLXConsoleIP() {
   Serial.println("Looking for consoles");
   EthernetUDP udp = EthernetUDP();
@@ -159,24 +188,7 @@ bool getEthernetIPFromNetwork() {
 
   Serial.println("Ethernet started");
   return !!Ethernet.localIP();
-}
-
-/// @brief Connect to the LX console over TCP.
-/// @return Whether the connection was successful.
-bool connectToLXConsole() {
-  if (!tcp.connectionId()) {
-    Serial.print("Connecting to LX console at: ");
-    Serial.printf(" %u.%u.%u.%u\r\n", DEST_IP[0], DEST_IP[1], DEST_IP[2],
-                  DEST_IP[3]);
-    if (!tcp.connect(DEST_IP, outPort)) {
-      return false;
-    }
-    tcp.setConnectionTimeout(600);
-    Serial.println("Connected to LX console.");
-    networkStateChanged = true;
-  }
-  return true;
-}
+};
 
 void setupNetworking() {
   Ethernet.onLinkState([](bool state) {
@@ -185,8 +197,8 @@ void setupNetworking() {
     } else {
       Serial.println("[Ethernet] Link OFF");
       gotIP = false;
-      if (tcp) {
-        tcp.abort();
+      if (client.isConnected()) {
+        client.disconnectFromConsole();
         Serial.println("[Ethernet] Aborted TCP Connection");
       }
     }
@@ -225,32 +237,23 @@ void setupNetworking() {
   });
 
   Ethernet.setHostname(HOSTNAME);
-
-  getEthernetIPFromNetwork();
-
-  getLXConsoleIP();
-  connectToLXConsole();
 }
 
 void checkNetwork() {
   if (!gotIP) {
     getEthernetIPFromNetwork();
   }
-  if (!tcp.connectionId()) {
+  if (!client.isConnected()) {
     networkStateChanged = true;
     if (sinceLastConnectAttempt > TCPConnectionCheckTime) {
       sinceLastConnectAttempt = 0;
-      if (!connectToLXConsole()) {
+      if (!client.connectToConsole()) {
         Serial.println("Failed to connect to LX Console");
       }
     }
   }
 
-  if (tcp.available()) {
-    while (tcp.available()) {
-      tcp.read();
-    }
-  }
+  client.Task();
 };
 
 #endif // Network_h

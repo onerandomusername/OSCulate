@@ -1,5 +1,3 @@
-#pragma once
-
 #ifndef Config_h
 #define Config_h
 
@@ -8,18 +6,11 @@
 #include <string>
 #include <unordered_map>
 
-enum class OSCVersion {
-  PacketLength,
-  SLIP,
-};
+inline IPAddress DEST_IP = IPAddress(10, 101, 1, 101);
+inline uint16_t outPort = 3036;
 
-OSCVersion oscversion = OSCVersion::PacketLength;
-
-IPAddress DEST_IP = IPAddress(10, 101, 1, 101);
-uint16_t outPort = 3036;
-
-IPAddress staticSubnetMask(255, 255, 0, 0);
-IPAddress staticIP = IPAddress(10, 101, 1, 104);
+inline IPAddress staticSubnetMask(255, 255, 0, 0);
+inline IPAddress staticIP = IPAddress(10, 101, 1, 104);
 const int fallbackWaitTime = 6000UL;
 
 const int TCPConnectionCheckTime = 4000L;

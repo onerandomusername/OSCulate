@@ -4,6 +4,7 @@
 #define keyboard_h
 
 #include "config.h"
+#include "osc_base.h"
 #include <Arduino.h>
 #include <OSCMessage.h>
 #include <USBHost_t36.h>
@@ -294,47 +295,39 @@ void setupKeyboard() {
   // keyboard1.attachExtrasRelease(OnHIDExtrasRelease);
 };
 
-void processKeyboard() {
-  if (state_changed) {
-    state_changed = false;
-    digitalWrite(LED_BUILTIN, HIGH);
-    ledLastOn = millis();
-    Serial.println("State changed, sending commands");
-    if (!unprocessedKeyUp.empty()) {
-      for (auto key : unprocessedKeyUp) {
-        Serial.print("Need to send a key UP for: ");
-        Serial.println(key);
-        if (keyToCommand.find(key) != keyToCommand.end()) {
-          auto command = keyToCommand.at(key);
-          keyToCommand.erase(key);
-          Serial.println(command.c_str());
-          sendRemoteCommand(command.c_str(), false);
-        } else {
-          Serial.println("Key not down, can't up ");
-        }
+void processKeyboard(OSCClient &client) {
+
+  if (!unprocessedKeyUp.empty()) {
+    for (auto key : unprocessedKeyUp) {
+      Serial.print("Need to send a key UP for: ");
+      Serial.println(key);
+      if (keyToCommand.find(key) != keyToCommand.end()) {
+        auto command = keyToCommand.at(key);
+        keyToCommand.erase(key);
+        Serial.println(command.c_str());
+        client.sendEosKey(command.c_str(), false);
+      } else {
+        Serial.println("Key not down, can't up ");
       }
-      unprocessedKeyUp.clear();
     }
-    if (!unprocessedKeyDown.empty()) {
-      for (auto key : unprocessedKeyDown) {
-        Serial.print("Need to send a key DOWN for: ");
-        Serial.println(key.c_str());
-        sendRemoteCommand(key.c_str(), true);
-      }
-      unprocessedKeyDown.clear();
+    unprocessedKeyUp.clear();
+  }
+  if (!unprocessedKeyDown.empty()) {
+    for (auto key : unprocessedKeyDown) {
+      Serial.print("Need to send a key DOWN for: ");
+      Serial.println(key.c_str());
+      client.sendEosKey(key.c_str(), true);
     }
+    unprocessedKeyDown.clear();
   }
 };
 
 void updateStatusLights(bool hasIP, bool connectedToConsole) {
-  if (networkStateChanged) {
-    networkStateChanged = false;
-    KeyboardController::KBDLeds_t ledState = {keyboard1.LEDS()};
-    ledState.numLock = hasIP;
-    ledState.scrollLock = connectedToConsole;
-    if (ledState.byte != keyboard1.LEDS()) {
-      keyboard1.LEDS(ledState.byte);
-    }
+  KeyboardController::KBDLeds_t ledState = {keyboard1.LEDS()};
+  ledState.numLock = hasIP;
+  ledState.scrollLock = connectedToConsole;
+  if (ledState.byte != keyboard1.LEDS()) {
+    keyboard1.LEDS(ledState.byte);
   }
 }
 #endif // keyboard_h

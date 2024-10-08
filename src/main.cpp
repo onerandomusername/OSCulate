@@ -1,9 +1,9 @@
 
 
-#include "SLIPEncodedTCP.h"
 #include "config.h"
 #include "keyboard.hpp"
-#include "network.hpp"
+#include "network.h"
+#include "osc_base.h"
 #include <Arduino.h>
 #include <list>
 #include <string>
@@ -52,13 +52,19 @@ void loop() {
 
   checkNetwork();
 
-  processKeyboard();
+  if (state_changed) {
+    state_changed = false;
+    digitalWrite(LED_BUILTIN, HIGH);
+    ledLastOn = millis();
+    Serial.println("State changed, sending commands");
+    processKeyboard(client);
+  };
 
   if (ledLastOn + 6 < millis()) {
     digitalWrite(LED_BUILTIN, LOW);
   }
 
   if (networkStateChanged) {
-    updateStatusLights(!!gotIP, !!tcp.connected());
+    updateStatusLights(!!gotIP, !!client.isConnected());
   }
 }
