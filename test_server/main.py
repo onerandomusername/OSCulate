@@ -22,7 +22,7 @@ KEYS_PRESSED = set()
 
 
 def send_keypress(ip_addr: tuple[str, int], osc_addr: str, value: float, *args):
-    key = osc_addr.removeprefix("/keypress/")
+    key = osc_addr.removeprefix("/eos/key/")
     if not key:
         if value:
             print("No key specified")
@@ -78,7 +78,7 @@ if __name__ == "__main__":
     ENABLE_AUTOHOTKEY = args.autohotkey or False
 
     dispatcher = Dispatcher()
-    dispatcher.map("/keypress/*", send_keypress, needs_reply_address=True)
+    dispatcher.map("/eos/key/*", send_keypress, needs_reply_address=True)
     dispatcher.set_default_handler(print_log, needs_reply_address=True)
 
     server = osc_tcp_server.ThreadingOSCTCPServer(
