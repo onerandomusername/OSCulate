@@ -44,6 +44,12 @@ void TCPConnection::Task() {
 /// @return Whether the connection was successful.
 bool TCPConnection::connectToConsole() {
   if (!transport.connectionId()) {
+    if (DEST_IP == INADDR_NONE) {
+      Serial.println("IP set to NULL, trying to get it from the network.");
+      if (!getLXConsoleIP()) {
+        return false;
+      }
+    }
     Serial.print("Connecting to LX console at: ");
     Serial.printf(" %u.%u.%u.%u\r\n", DEST_IP[0], DEST_IP[1], DEST_IP[2],
                   DEST_IP[3]);

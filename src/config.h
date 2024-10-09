@@ -6,7 +6,12 @@
 #include <string>
 #include <unordered_map>
 
-inline IPAddress DEST_IP = IPAddress(10, 101, 1, 101);
+#ifdef CONFIG_CONSOLE_IP
+inline IPAddress DEST_IP = IPAddress().fromString(CONFIG_CONSOLE_IP);
+#else
+inline IPAddress DEST_IP = IPAddress(0, 0, 0, 0);
+#endif // CONFIG_CONSOLE_IP
+
 inline uint16_t outPort = 3036;
 
 inline IPAddress staticSubnetMask(255, 255, 0, 0);
