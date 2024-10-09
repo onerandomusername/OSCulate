@@ -10,6 +10,9 @@
 #include <QNEthernet.h>
 #include <set>
 
+const std::string_view discoveryReplyAddress =
+    std::string_view("/etc/discovery/reply");
+
 TCPConnection::TCPConnection(OSCVersion version = OSCVersion::SLIP)
     : transport(), slip(transport) {
   setOSCVersion(version);
@@ -114,26 +117,59 @@ bool getLXConsoleIP() {
 
     elapsedMillis serverTimeout = 0;
 
-    OSCBundle bundleIN;
-    int size;
-
     while (serverTimeout < 5000) {
+      OSCMessage bundleIN;
+      int size;
       if ((size = udpServer.parsePacket()) > 0) {
-        while (size--)
-          bundleIN.fill(udpServer.read());
 
+        while (size--) {
+          char s = udpServer.read();
+          bundleIN.fill(s);
+        };
+        OSCMessage &msg = bundleIN;
         if (!bundleIN.hasError()) {
-          // honestly too tired to do this right
-          // we should parse the entire response
-          // but frankly for now i'm assuming if they reply they're a console
-          // this does not support a priorty console which is the next goal.
-
-          IPAddress remoteIP = udpServer.remoteIP();
-          ULOG_INFO("A console responded at IP: %u.%u.%u.%u", remoteIP[0],
-                    remoteIP[1], remoteIP[2], remoteIP[3]);
-          foundIPs.insert(remoteIP);
+        } else if (!msg.hasError()) {
+          ULOG_INFO("Bundle was corrupted, but raw message was good.");
+        } else {
+          ULOG_INFO("Message is also bad");
+          while (udpServer.available()) {
+            udpServer.read();
+          }
+          bundleIN.empty();
+          continue;
         }
-      }
+
+        if (discoveryReplyAddress != msg.getAddress()) {
+          // ignore the reply because it wasn't sent to the reply address
+          ULOG_INFO("We got a a reply but it was some other address!");
+          continue;
+        }
+        // the format of this message is supposed to be isssTs but who really
+        // knows lol
+        for (int j = 0; j < msg.size(); j++) {
+          ULOG_TRACE("Message type: %c", msg.getType(j));
+          if (msg.isString(j)) {
+            char buffer[512];
+            int wrote = msg.getString(j, buffer, 512);
+            if (buffer == CONSOLE_NAME) {
+              // return straight up if we found the console we're looking for
+              ULOG_INFO("You have found the console you're looking for");
+              IPAddress remoteIP = udpServer.remoteIP();
+              DEST_IP = remoteIP;
+              ULOG_INFO("Using console at: %u.%u.%u.%u", DEST_IP[0], DEST_IP[1],
+                        DEST_IP[2], DEST_IP[3]);
+              return true;
+            }
+            ULOG_TRACE("We parsed a string: %s", buffer);
+            ULOG_TRACE("It was at position: %u", j);
+          };
+        };
+
+        IPAddress remoteIP = udpServer.remoteIP();
+        ULOG_INFO("A console responded at IP: %u.%u.%u.%u", remoteIP[0],
+                  remoteIP[1], remoteIP[2], remoteIP[3]);
+        foundIPs.insert(remoteIP);
+      };
     };
   };
 

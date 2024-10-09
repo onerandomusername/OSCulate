@@ -13,6 +13,12 @@ inline bool _unused_var = DEST_IP.fromString(CONFIG_CONSOLE_IP);
 inline IPAddress DEST_IP = IPAddress(0, 0, 0, 0);
 #endif // CONFIG_CONSOLE_IP
 
+#ifdef CONFIG_CONSOLE_NAME
+inline std::string CONSOLE_NAME = CONFIG_CONSOLE_NAME;
+#else
+inline std::string CONSOLE_NAME = "Eos";
+#endif // CONFIG_CONSOLE_NAME
+
 inline uint16_t outPort = 3036;
 
 inline IPAddress staticSubnetMask(255, 255, 0, 0);
