@@ -16,6 +16,16 @@ USBHIDParser hid1(myusb);
 USBHIDParser hid2(myusb);
 USBHIDParser hid3(myusb);
 
+// used to force an update of the keyboard LEDs every second
+// the Usb HID spec does not involve the keyboard sending us its state
+// so we need to keep a local spec
+// the keyboard is not always ready when plugged in, and takes an indeterminate
+// amount of time to be ready. so we need to keep trying to set the LEDs
+// until it works.
+// Future enchancement would be not sending constantly, but only during the
+// first 10 seconds of connection
+elapsedMillis ledsLastUpdated;
+
 // modifier keys, stored as a bitfield
 // from bits 1<<0 to 1<<7:
 // 0 (Left Control)
@@ -324,5 +334,9 @@ void updateStatusLights(bool hasIP, bool connectedToConsole) {
   ledState.scrollLock = connectedToConsole;
   if (ledState.byte != keyboard1.LEDS()) {
     keyboard1.LEDS(ledState.byte);
+    ledsLastUpdated = 0;
+  } else if (ledsLastUpdated > 1000) {
+    keyboard1.updateLEDS();
+    ledsLastUpdated = 0;
   }
 }

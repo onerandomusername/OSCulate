@@ -57,7 +57,5 @@ void loop() {
     digitalWrite(LED_BUILTIN, LOW);
   }
 
-  if (networkStateChanged) {
-    updateStatusLights(!!gotIP, !!client.isConnected());
-  }
+  updateStatusLights(!!gotIP, !!client.isConnected());
 }
