@@ -29,14 +29,20 @@ void setup() {
   digitalWrite(LED_BUILTIN, HIGH);
 
   ULOG_INIT();
-  ULOG_SUBSCRIBE(my_console_logger, ULOG_DEBUG_LEVEL);
+
+#ifdef LOGGER_LEVEL
+  ULOG_SUBSCRIBE(my_console_logger, LOGGER_LEVEL);
+#else
+  ULOG_SUBSCRIBE(my_console_logger, ULOG_INFO_LEVEL);
+#endif // LOGGER_LEVEL
 
   while (!Serial && millis() < 4000) {
     // Wait for Serial
   } // wait for Arduino Serial Monitor
+
   ULOG_INFO("\n\n\n");
 
-  ULOG_INFO("Logging configured."); // logs to file and console
+  ULOG_INFO("Logging configured.");
 
   setupKeyboard();
 
