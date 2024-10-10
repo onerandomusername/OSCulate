@@ -1,6 +1,7 @@
 #include "osc_base.h"
 #include "SLIPEncodedTCP.h"
 #include "config.h"
+#include "ulog.h"
 
 /// @brief Send an OSC message over the network using OSC v1.0 over TCP.
 /// @param msg The OSCMessage to send.
@@ -43,13 +44,12 @@ void OSCClient::send(OSCMessage &msg) { connection.send(msg); }
 /// Eos key, eg "at"
 /// @param isDown Whether the key was just pressed down or just released.
 void OSCClient::sendEosKey(const char key[], bool isDown) {
-  Serial.print("Got key: ");
-  Serial.println(key);
+  ULOG_INFO("Got key: %s", key);
   std::string address(addressPrefix);
   address += key;
   OSCMessage msg(address.c_str());
   msg.add(isDown ? 1.0 : 0.0);
-  Serial.printf("Address: %s\r\n", address.c_str());
+  ULOG_INFO("Address: %s", address.c_str());
 
   this->send(msg);
 

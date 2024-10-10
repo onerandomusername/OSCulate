@@ -1,1 +1,4 @@
 * text=auto
+
+lib/**.h linguist-vendored
+lib/**.cpp linguist-vendored

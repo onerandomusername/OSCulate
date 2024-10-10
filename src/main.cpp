@@ -4,11 +4,16 @@
 #include "keyboard.h"
 #include "network.h"
 #include "osc_base.h"
+#include "ulog.h"
 #include <Arduino.h>
 #include <list>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+
+void my_console_logger(ulog_level_t severity, char *msg) {
+  Serial.printf("[%s]: %s\n", ulog_level_name(severity), msg);
+}
 
 // Debugging statement for showing keyboard data
 // #define SHOW_KEYBOARD_DATA
@@ -22,16 +27,25 @@ void setup() {
   // signal is being sent
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, HIGH);
+
+  ULOG_INIT();
+
+  // log messages with a severity of WARNING or higher to the console.  The
+  // user must supply a method for my_console_logger, e.g. along the lines
+  // of what is shown above.
+  ULOG_SUBSCRIBE(my_console_logger, ULOG_DEBUG_LEVEL);
+
   while (!Serial && millis() < 4000) {
     // Wait for Serial
   } // wait for Arduino Serial Monitor
-  Serial.println("\n\n\n");
+  ULOG_INFO("\n\n\n");
+
+  ULOG_INFO("Logging configured."); // logs to file and console
 
   setupKeyboard();
 
-  Serial.println();
-  Serial.println("[Start]");
-  Serial.println("Starting Ethernet with DHCP...");
+  ULOG_INFO("[Start]");
+  ULOG_INFO("Starting Ethernet with DHCP...");
   setupNetworking();
 
   digitalWrite(LED_BUILTIN, LOW);
@@ -49,7 +63,7 @@ void loop() {
     state_changed = false;
     digitalWrite(LED_BUILTIN, HIGH);
     ledLastOn = millis();
-    Serial.println("State changed, sending commands");
+    ULOG_INFO("State changed, sending commands");
     processKeyboard(client);
   };
 

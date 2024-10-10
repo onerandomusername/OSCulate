@@ -3,6 +3,7 @@
 #include "SLIPEncodedTCP.h"
 #include "config.h"
 #include "osc_base.h"
+#include "ulog.h"
 #include <Arduino.h>
 #include <OSCBundle.h>
 #include <OSCMessage.h>
@@ -32,9 +33,8 @@ void TCPConnection::send(OSCMessage &msg) {
   }
   transport.flush();
   if (transport.status() != ESTABLISHED) {
-    Serial.print("Transport status: ");
-    Serial.println(transport.status());
-    Serial.println("Aborting transport and recreating.");
+    ULOG_INFO("Transport status: %i", transport.status());
+    ULOG_INFO("Aborting transport and recreating.");
     transport.abort();
   }
 }
@@ -52,20 +52,19 @@ void TCPConnection::Task() {
 bool TCPConnection::connectToConsole() {
   if (!transport.connectionId()) {
     if (DEST_IP == INADDR_NONE) {
-      Serial.println("IP set to NULL, trying to get it from the network.");
+      ULOG_INFO("IP set to NULL, trying to get it from the network.");
       if (!getLXConsoleIP()) {
         return false;
       }
     }
-    Serial.print("Connecting to LX console at: ");
-    Serial.printf(" %u.%u.%u.%u\r\n", DEST_IP[0], DEST_IP[1], DEST_IP[2],
-                  DEST_IP[3]);
+    ULOG_INFO("Connecting to LX console at: %u.%u.%u.%u", DEST_IP[0],
+              DEST_IP[1], DEST_IP[2], DEST_IP[3]);
     if (!transport.connect(DEST_IP, outPort)) {
       return false;
     }
     transport.setConnectionTimeout(600);
     transport.setTimeout(600);
-    Serial.println("Connected to LX console.");
+    ULOG_INFO("Connected to LX console.");
     networkStateChanged = true;
   }
   return true;
@@ -74,7 +73,7 @@ bool TCPConnection::connectToConsole() {
 void TCPConnection::disconnectFromConsole() {
   if (transport.connected()) {
     transport.abort();
-    Serial.println("Disconnected from LX console.");
+    ULOG_INFO("Disconnected from LX console.");
     networkStateChanged = true;
   }
 };
@@ -92,7 +91,7 @@ uint16_t sinceLastGatheredConsoles = 0;
 /// this BLOCKING method is a contained routine for getting the IP address
 /// from the network.
 bool getLXConsoleIP() {
-  Serial.println("Looking for consoles");
+  ULOG_INFO("Looking for consoles");
   EthernetUDP udpClient = EthernetUDP();
   EthernetUDP udpServer = EthernetUDP(10);
   udpServer.begin(3035);
@@ -111,7 +110,7 @@ bool getLXConsoleIP() {
         0x6f, 0x76, 0x65, 0x72, 0x79, 0x0,  0x0,  0x0};
     udpClient.write(bytes, sizeof(bytes));
     udpClient.endPacket();
-    Serial.printf("Sent discovery request to broadcast: %u/3\r\n", i + 1);
+    ULOG_INFO("Sent discovery request to broadcast: %u/3", i + 1);
 
     elapsedMillis serverTimeout = 0;
 
@@ -130,8 +129,8 @@ bool getLXConsoleIP() {
           // this does not support a priorty console which is the next goal.
 
           IPAddress remoteIP = udpServer.remoteIP();
-          Serial.printf("Found a console at IP: %u.%u.%u.%u\r\n", remoteIP[0],
-                        remoteIP[1], remoteIP[2], remoteIP[3]);
+          ULOG_INFO("Found a console at IP: %u.%u.%u.%u", remoteIP[0],
+                    remoteIP[1], remoteIP[2], remoteIP[3]);
           foundIPs.insert(remoteIP);
         }
       }
@@ -139,18 +138,17 @@ bool getLXConsoleIP() {
   };
 
   if (foundIPs.size() == 0) {
-    Serial.println("No consoles found");
+    ULOG_INFO("No consoles found");
     return false;
   }
 
   if (foundIPs.size() > 1) {
-    Serial.println("Multiple consoles found, using first");
+    ULOG_INFO("Multiple consoles found, using first");
   }
 
   DEST_IP = *foundIPs.begin();
-  Serial.print("Found console at: ");
-  Serial.printf(" %u.%u.%u.%u\r\n", DEST_IP[0], DEST_IP[1], DEST_IP[2],
-                DEST_IP[3]);
+  ULOG_INFO("Found console at: %u.%u.%u.%u", DEST_IP[0], DEST_IP[1], DEST_IP[2],
+            DEST_IP[3]);
 
   return true;
 }
@@ -164,34 +162,34 @@ bool getEthernetIPFromNetwork() {
     return false;
   }
   if (!Ethernet.begin()) {
-    Serial.println("ERROR: Failed to start Ethernet");
+    ULOG_INFO("ERROR: Failed to start Ethernet");
     return false;
   }
 
   if (!Ethernet.waitForLink(fallbackWaitTime)) {
-    Serial.println("Ethernet link is not up");
+    ULOG_INFO("Ethernet link is not up");
     return false;
   }
 
   if (!Ethernet.waitForLocalIP(fallbackWaitTime)) {
-    Serial.println("Failed to get IP address, trying static");
+    ULOG_INFO("Failed to get IP address, trying static");
     Ethernet.begin(staticIP, staticSubnetMask, INADDR_NONE);
   }
 
-  Serial.println("Ethernet started");
+  ULOG_INFO("Ethernet started");
   return !!Ethernet.localIP();
 };
 
 void setupNetworking() {
   Ethernet.onLinkState([](bool state) {
     if (state) {
-      Serial.println("[Ethernet] Link ON");
+      ULOG_INFO("[Ethernet] Link ON");
     } else {
-      Serial.println("[Ethernet] Link OFF");
+      ULOG_INFO("[Ethernet] Link OFF");
       gotIP = false;
       if (client.isConnected()) {
         client.disconnectFromConsole();
-        Serial.println("[Ethernet] Aborted TCP Connection");
+        ULOG_INFO("[Ethernet] Aborted TCP Connection");
       }
     }
     networkStateChanged = true;
@@ -204,25 +202,20 @@ void setupNetworking() {
     bool hasIP = (ip != INADDR_NONE);
     if (hasIP) {
       gotIP = true;
-      Serial.printf("[Ethernet] Address changed:\r\n");
+      ULOG_INFO("[Ethernet] Address changed:");
       ip = Ethernet.localIP();
-      Serial.printf("    Local IP     = %u.%u.%u.%u\r\n", ip[0], ip[1], ip[2],
-                    ip[3]);
-      Serial.println(Ethernet.isDHCPActive() ? "    DHCP" : "    Static IP");
+      ULOG_INFO("    Local IP     = %u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
+      ULOG_INFO(Ethernet.isDHCPActive() ? "    DHCP" : "    Static IP");
       ip = Ethernet.subnetMask();
-      Serial.printf("    Subnet mask  = %u.%u.%u.%u\r\n", ip[0], ip[1], ip[2],
-                    ip[3]);
+      ULOG_INFO("    Subnet mask  = %u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
       ip = Ethernet.broadcastIP();
-      Serial.printf("    Broadcast IP = %u.%u.%u.%u\r\n", ip[0], ip[1], ip[2],
-                    ip[3]);
+      ULOG_INFO("    Broadcast IP = %u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
       ip = Ethernet.gatewayIP();
-      Serial.printf("    Gateway      = %u.%u.%u.%u\r\n", ip[0], ip[1], ip[2],
-                    ip[3]);
+      ULOG_INFO("    Gateway      = %u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
       ip = Ethernet.dnsServerIP();
-      Serial.printf("    DNS          = %u.%u.%u.%u\r\n", ip[0], ip[1], ip[2],
-                    ip[3]);
+      ULOG_INFO("    DNS          = %u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
     } else {
-      Serial.println("[Ethernet] Address changed: No IP");
+      ULOG_INFO("[Ethernet] Address changed: No IP");
       gotIP = false;
     }
     networkStateChanged = true;
@@ -251,7 +244,7 @@ void checkNetwork() {
       }
 
       if (!client.connectToConsole()) {
-        Serial.println("Failed to connect to LX Console");
+        ULOG_INFO("Failed to connect to LX Console");
       }
     }
   } else {

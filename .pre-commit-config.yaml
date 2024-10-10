@@ -24,4 +24,4 @@ repos:
     rev: 'v19.1.0'  # Use the sha / tag you want to point at
     hooks:
       - id: clang-format
-        exclude: '.vscode/extensions.json$'
+        exclude: '.vscode/extensions.json$|lib/'

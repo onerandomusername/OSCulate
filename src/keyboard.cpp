@@ -1,6 +1,7 @@
 
 #include "config.h"
 #include "osc_base.h"
+#include "ulog.h"
 #include <Arduino.h>
 #include <OSCMessage.h>
 #include <USBHost_t36.h>
@@ -58,7 +59,7 @@ std::unordered_map<std::uint16_t, std::string> keyToCommand;
 /// @param keycode the raw keycode that was pressed on a keyboard.
 /// @return The OSC key that corresponds to the keypress.
 std::string rawKeytoOSCCommand(uint8_t keycode) {
-  Serial.println(keyboard_modifiers, HEX);
+  ULOG_INFO("%u", keyboard_modifiers, HEX);
   const bool CONTROL_PRESSED = keyboard_modifiers & 0b00010001;
   const bool SHIFT_PRESSED = keyboard_modifiers & 0b00100010;
   const bool ALT_PRESSED = keyboard_modifiers & 0b01000100;
@@ -86,8 +87,7 @@ std::string rawKeytoOSCCommand(uint8_t keycode) {
     key_equal = "";
   }
   if (!key_equal.empty()) {
-    Serial.print("Key Equal: ");
-    Serial.println(key_equal.c_str());
+    ULOG_INFO("Key Equal: %s", key_equal.c_str());
   }
   return key_equal;
 }
@@ -108,8 +108,7 @@ std::string rawKeyToStringPassThrough(uint8_t keycode) {
           ? keymap_key_to_name.at(matcher)
           : "\0";
 
-  Serial.print("Key Equal: ");
-  Serial.println(key_equal.c_str());
+  ULOG_INFO("Key Equal: %s", key_equal.c_str());
   return key_equal;
 }
 
@@ -117,15 +116,14 @@ std::string rawKeyToStringPassThrough(uint8_t keycode) {
 /// @param keycode the raw keycode that was pressed on a keyboard.
 void OnRawPress(uint8_t keycode) {
   const std::string keypressed = rawKeytoOSCCommand(keycode);
-  Serial.println(!keypressed.empty() ? "Key Pressed" : "Key is empty");
+  ULOG_INFO(!keypressed.empty() ? "Key Pressed" : "Key is empty");
   if (!keypressed.empty()) {
     keyToCommand[keycode] = keypressed;
     unprocessedKeyDown.insert(keypressed);
     state_changed = true;
   } else {
-    Serial.println("Key not found in map ; but why do we error??");
-    Serial.print("Odd keycode? ");
-    Serial.println(keycode);
+    ULOG_INFO("Key not found in map ; but why do we error??");
+    ULOG_INFO("Odd keycode? %u", keycode);
   }
   if (keycode >= 103 && keycode < 111) {
     // one of the modifier keys was pressed, so lets turn it
@@ -136,7 +134,7 @@ void OnRawPress(uint8_t keycode) {
   Serial.print("OnRawPress keycode: ");
   Serial.print(keycode, HEX);
   Serial.print(" Modifiers: ");
-  Serial.println(keyboard_modifiers, HEX);
+  ULOG_INFO(keyboard_modifiers, HEX);
 #endif
 }
 
@@ -155,7 +153,7 @@ void OnRawRelease(uint8_t keycode) {
   Serial.print("OnRawRelease keycode: ");
   Serial.print(keycode, HEX);
   Serial.print(" Modifiers: ");
-  Serial.println(keyboard1.getModifiers(), HEX);
+  ULOG_INFO(keyboard1.getModifiers(), HEX);
 #endif
 }
 
@@ -182,46 +180,45 @@ void ShowUpdatedDeviceListInfo() {
   for (uint8_t i = 0; i < CNT_DEVICES; i++) {
     if (*drivers[i] != driver_active[i]) {
       if (driver_active[i]) {
-        Serial.printf("*** Device %s - disconnected ***\n", driver_names[i]);
+        ULOG_INFO("*** Device %s - disconnected ***", driver_names[i]);
         driver_active[i] = false;
       } else {
-        Serial.printf("*** Device %s %x:%x - connected ***\n", driver_names[i],
-                      drivers[i]->idVendor(), drivers[i]->idProduct());
+        ULOG_INFO("*** Device %s %x:%x - connected ***", driver_names[i],
+                  drivers[i]->idVendor(), drivers[i]->idProduct());
         driver_active[i] = true;
 
         const uint8_t *psz = drivers[i]->manufacturer();
         if (psz && *psz)
-          Serial.printf("  manufacturer: %s\n", psz);
+          ULOG_INFO("  manufacturer: %s", psz);
         psz = drivers[i]->product();
         if (psz && *psz)
-          Serial.printf("  product: %s\n", psz);
+          ULOG_INFO("  product: %s", psz);
         psz = drivers[i]->serialNumber();
         if (psz && *psz)
-          Serial.printf("  Serial: %s\n", psz);
+          ULOG_INFO("  Serial: %s", psz);
       }
     }
   }
   for (uint8_t i = 0; i < CNT_HIDDEVICES; i++) {
     if (*hiddrivers[i] != hid_driver_active[i]) {
       if (hid_driver_active[i]) {
-        Serial.printf("*** HID Device %s - disconnected ***\n",
-                      hid_driver_names[i]);
+        ULOG_INFO("*** HID Device %s - disconnected ***", hid_driver_names[i]);
         hid_driver_active[i] = false;
       } else {
-        Serial.printf("*** HID Device %s %x:%x - connected ***\n",
-                      hid_driver_names[i], hiddrivers[i]->idVendor(),
-                      hiddrivers[i]->idProduct());
+        ULOG_INFO("*** HID Device %s %x:%x - connected ***",
+                  hid_driver_names[i], hiddrivers[i]->idVendor(),
+                  hiddrivers[i]->idProduct());
         hid_driver_active[i] = true;
 
         const uint8_t *psz = hiddrivers[i]->manufacturer();
         if (psz && *psz)
-          Serial.printf("  manufacturer: %s\n", psz);
+          ULOG_INFO("  manufacturer: %s", psz);
         psz = hiddrivers[i]->product();
         if (psz && *psz)
-          Serial.printf("  product: %s\n", psz);
+          ULOG_INFO("  product: %s", psz);
         psz = hiddrivers[i]->serialNumber();
         if (psz && *psz)
-          Serial.printf("  Serial: %s\n", psz);
+          ULOG_INFO("  Serial: %s", psz);
         // Note: with some keyboards there is an issue that they may not
         // output in a format understand either as in boot format or in a
         // HID format that is recognized.  In that case you can try
@@ -236,26 +233,26 @@ void ShowUpdatedDeviceListInfo() {
   for (uint8_t i = 0; i < CNT_BTHIDDEVICES; i++) {
     if (*bthiddrivers[i] != bthid_driver_active[i]) {
       if (bthid_driver_active[i]) {
-        Serial.printf("*** BTHID Device %s - disconnected ***\n",
-                      bthid_driver_names[i]);
+        ULOG_INFO("*** BTHID Device %s - disconnected ***",
+                  bthid_driver_names[i]);
         bthid_driver_active[i] = false;
       } else {
-        Serial.printf("*** BTHID Device %s %x:%x - connected ***\n",
-                      bthid_driver_names[i], bthiddrivers[i]->idVendor(),
-                      bthiddrivers[i]->idProduct());
+        ULOG_INFO("*** BTHID Device %s %x:%x - connected ***",
+                  bthid_driver_names[i], bthiddrivers[i]->idVendor(),
+                  bthiddrivers[i]->idProduct());
         bthid_driver_active[i] = true;
         const uint8_t *psz = bthiddrivers[i]->manufacturer();
         if (psz && *psz)
-          Serial.printf("  manufacturer: %s\n", psz);
+          ULOG_INFO("  manufacturer: %s", psz);
         psz = bthiddrivers[i]->product();
         if (psz && *psz)
-          Serial.printf("  product: %s\n", psz);
+          ULOG_INFO("  product: %s", psz);
         psz = bthiddrivers[i]->serialNumber();
         if (psz && *psz)
-          Serial.printf("  Serial: %s\n", psz);
+          ULOG_INFO("  Serial: %s", psz);
         if (bthiddrivers[i] == &keyboard1) {
           // try force back to HID mode
-          Serial.println("\n Try to force keyboard back into HID protocol");
+          ULOG_INFO("\n Try to force keyboard back into HID protocol");
           keyboard1.forceHIDProtocol();
         }
       }
@@ -278,17 +275,17 @@ void ShowHIDExtrasPress(uint32_t top, uint16_t key) {
           ? keymap_key_to_name.at(key)
           : "\0";
 
-  Serial.println(key_equal.c_str());
+  ULOG_INFO(key_equal.c_str());
 }
 
 void setupKeyboard() {
 #ifdef SHOW_KEYBOARD_DATA
 
-  Serial.println("\n\nUSB Host Keyboard forward and Testing");
-  Serial.println(sizeof(USBHub), DEC);
+  ULOG_INFO("\n\nUSB Host Keyboard forward and Testing");
+  ULOG_INFO(sizeof(USBHub), DEC);
 #endif
   myusb.begin();
-  Serial.println("USB Host started");
+  ULOG_INFO("USB Host started");
 #ifdef KEYBOARD_INTERFACE
   Keyboard.begin();
   Keyboard.press(KEY_NUM_LOCK);
@@ -305,23 +302,21 @@ void processKeyboard(OSCClient &client) {
 
   if (!unprocessedKeyUp.empty()) {
     for (auto key : unprocessedKeyUp) {
-      Serial.print("Need to send a key UP for: ");
-      Serial.println(key);
+      ULOG_INFO("Need to send a key UP for: %u", key);
       if (keyToCommand.find(key) != keyToCommand.end()) {
         auto command = keyToCommand.at(key);
         keyToCommand.erase(key);
-        Serial.println(command.c_str());
+        ULOG_INFO(command.c_str());
         client.sendEosKey(command.c_str(), false);
       } else {
-        Serial.println("Key not down, can't up ");
+        ULOG_INFO("Key not down, can't up ");
       }
     }
     unprocessedKeyUp.clear();
   }
   if (!unprocessedKeyDown.empty()) {
     for (auto key : unprocessedKeyDown) {
-      Serial.print("Need to send a key DOWN for: ");
-      Serial.println(key.c_str());
+      ULOG_INFO("Need to send a key DOWN for: %s", key.c_str());
       client.sendEosKey(key.c_str(), true);
     }
     unprocessedKeyDown.clear();
