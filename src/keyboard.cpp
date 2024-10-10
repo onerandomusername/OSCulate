@@ -59,7 +59,7 @@ std::unordered_map<std::uint16_t, std::string> keyToCommand;
 /// @param keycode the raw keycode that was pressed on a keyboard.
 /// @return The OSC key that corresponds to the keypress.
 std::string rawKeytoOSCCommand(uint8_t keycode) {
-  ULOG_INFO("Keyboard Modifiers: 0x%02X", keyboard_modifiers);
+  ULOG_TRACE("Keyboard Modifiers: 0x%02X", keyboard_modifiers);
   const bool CONTROL_PRESSED = keyboard_modifiers & 0b00010001;
   const bool SHIFT_PRESSED = keyboard_modifiers & 0b00100010;
   const bool ALT_PRESSED = keyboard_modifiers & 0b01000100;
@@ -87,7 +87,7 @@ std::string rawKeytoOSCCommand(uint8_t keycode) {
     key_equal = "";
   }
   if (!key_equal.empty()) {
-    ULOG_INFO("Key Equal: %s", key_equal.c_str());
+    ULOG_TRACE("Key Equal: %s", key_equal.c_str());
   }
   return key_equal;
 }
@@ -108,7 +108,7 @@ std::string rawKeyToStringPassThrough(uint8_t keycode) {
           ? keymap_key_to_name.at(matcher)
           : "\0";
 
-  ULOG_INFO("Key Equal: %s", key_equal.c_str());
+  ULOG_TRACE("Key Equal: %s", key_equal.c_str());
   return key_equal;
 }
 
@@ -123,7 +123,7 @@ void OnRawPress(uint8_t keycode) {
     state_changed = true;
   } else {
     ULOG_INFO("Key not found in map ; but why do we error??");
-    ULOG_INFO("Odd keycode? %u", keycode);
+    ULOG_WARNING("Odd keycode? %u", keycode);
   }
   if (keycode >= 103 && keycode < 111) {
     // one of the modifier keys was pressed, so lets turn it
@@ -131,8 +131,8 @@ void OnRawPress(uint8_t keycode) {
     keyboard_modifiers |= 1 << (keycode - 103);
   }
 #ifdef SHOW_KEYBOARD_DATA
-  ULOG_INFO("OnRawPress keycode: 0x%02X", keycode);
-  ULOG_INFO(" Modifiers: 0x%02X", keyboard_modifiers);
+  ULOG_DEBUG("OnRawPress keycode: 0x%02X", keycode);
+  ULOG_DEBUG(" Modifiers: 0x%02X", keyboard_modifiers);
 #endif
 }
 
@@ -148,8 +148,8 @@ void OnRawRelease(uint8_t keycode) {
     state_changed = true;
   }
 #ifdef SHOW_KEYBOARD_DATA
-  ULOG_INFO("OnRawRelease keycode: 0x%02X", keycode);
-  ULOG_INFO(" Modifiers: 0x%02X", keyboard1.getModifiers());
+  ULOG_DEBUG("OnRawRelease keycode: 0x%02X", keycode);
+  ULOG_DEBUG(" Modifiers: 0x%02X", keyboard1.getModifiers());
 #endif
 }
 
@@ -293,21 +293,22 @@ void processKeyboard(OSCClient &client) {
 
   if (!unprocessedKeyUp.empty()) {
     for (auto key : unprocessedKeyUp) {
-      ULOG_INFO("Need to send a key UP for: %u", key);
+      ULOG_TRACE("Need to send a key UP for: %u", key);
       if (keyToCommand.find(key) != keyToCommand.end()) {
         auto command = keyToCommand.at(key);
         keyToCommand.erase(key);
-        ULOG_INFO(command.c_str());
+        ULOG_DEBUG("Sending key UP: %s", command.c_str());
         client.sendEosKey(command.c_str(), false);
       } else {
-        ULOG_INFO("Key not down, can't up ");
+        ULOG_DEBUG("Key not down, can't up ");
       }
     }
     unprocessedKeyUp.clear();
   }
   if (!unprocessedKeyDown.empty()) {
     for (auto key : unprocessedKeyDown) {
-      ULOG_INFO("Need to send a key DOWN for: %s", key.c_str());
+      ULOG_TRACE("Need to send a key DOWN for: %s", key.c_str());
+      ULOG_DEBUG("Sending key DOWN: %s", key.c_str());
       client.sendEosKey(key.c_str(), true);
     }
     unprocessedKeyDown.clear();

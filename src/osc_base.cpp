@@ -44,12 +44,12 @@ void OSCClient::send(OSCMessage &msg) { connection.send(msg); }
 /// Eos key, eg "at"
 /// @param isDown Whether the key was just pressed down or just released.
 void OSCClient::sendEosKey(const char key[], bool isDown) {
-  ULOG_INFO("Got key: %s", key);
+  ULOG_DEBUG("Got key: %s", key);
   std::string address(addressPrefix);
   address += key;
   OSCMessage msg(address.c_str());
   msg.add(isDown ? 1.0 : 0.0);
-  ULOG_INFO("Address: %s", address.c_str());
+  ULOG_DEBUG("Address: %s", address.c_str());
 
   this->send(msg);
 

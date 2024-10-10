@@ -33,8 +33,8 @@ void TCPConnection::send(OSCMessage &msg) {
   }
   transport.flush();
   if (transport.status() != ESTABLISHED) {
-    ULOG_INFO("Transport status: %i", transport.status());
-    ULOG_INFO("Aborting transport and recreating.");
+    ULOG_DEBUG("Transport status: %i", transport.status());
+    ULOG_WARNING("Aborting transport and recreating.");
     transport.abort();
   }
 }
@@ -129,7 +129,7 @@ bool getLXConsoleIP() {
           // this does not support a priorty console which is the next goal.
 
           IPAddress remoteIP = udpServer.remoteIP();
-          ULOG_INFO("Found a console at IP: %u.%u.%u.%u", remoteIP[0],
+          ULOG_INFO("A console responded at IP: %u.%u.%u.%u", remoteIP[0],
                     remoteIP[1], remoteIP[2], remoteIP[3]);
           foundIPs.insert(remoteIP);
         }
@@ -138,16 +138,16 @@ bool getLXConsoleIP() {
   };
 
   if (foundIPs.size() == 0) {
-    ULOG_INFO("No consoles found");
+    ULOG_INFO("No consoles found.");
     return false;
   }
 
   if (foundIPs.size() > 1) {
-    ULOG_INFO("Multiple consoles found, using first");
+    ULOG_INFO("Multiple consoles found, using first responded console.");
   }
 
   DEST_IP = *foundIPs.begin();
-  ULOG_INFO("Found console at: %u.%u.%u.%u", DEST_IP[0], DEST_IP[1], DEST_IP[2],
+  ULOG_INFO("Using console at: %u.%u.%u.%u", DEST_IP[0], DEST_IP[1], DEST_IP[2],
             DEST_IP[3]);
 
   return true;
@@ -162,18 +162,21 @@ bool getEthernetIPFromNetwork() {
     return false;
   }
   if (!Ethernet.begin()) {
-    ULOG_INFO("ERROR: Failed to start Ethernet");
+    ULOG_ERROR("ERROR: Failed to start Ethernet");
     return false;
   }
 
   if (!Ethernet.waitForLink(fallbackWaitTime)) {
-    ULOG_INFO("Ethernet link is not up");
+    ULOG_ERROR("Ethernet link is not up");
     return false;
   }
 
   if (!Ethernet.waitForLocalIP(fallbackWaitTime)) {
-    ULOG_INFO("Failed to get IP address, trying static");
-    Ethernet.begin(staticIP, staticSubnetMask, INADDR_NONE);
+    ULOG_WARNING("Failed to get IP address, trying static");
+    if (Ethernet.begin(staticIP, staticSubnetMask, INADDR_NONE))
+      ULOG_INFO("Set a static IP address.");
+    else
+      ULOG_ERROR("Failed to get an IP address.");
   }
 
   ULOG_INFO("Ethernet started");
@@ -189,7 +192,7 @@ void setupNetworking() {
       gotIP = false;
       if (client.isConnected()) {
         client.disconnectFromConsole();
-        ULOG_INFO("[Ethernet] Aborted TCP Connection");
+        ULOG_WARNING("[Ethernet] Aborted TCP Connection");
       }
     }
     networkStateChanged = true;
@@ -238,13 +241,15 @@ void checkNetwork() {
       if (sinceLastGatheredConsoles == 0)
         sinceLastGatheredConsoles = millis();
 
+      bool foundConsole = false;
       if (sinceLastGatheredConsoles != 0 &&
           (millis() - sinceLastConnectAttempt) > 15000) {
-        getLXConsoleIP();
+        foundConsole = getLXConsoleIP();
       }
 
       if (!client.connectToConsole()) {
-        ULOG_INFO("Failed to connect to LX Console");
+        ULOG_ERROR("Failed to connect to LX Console at %u.%u.%u.%u", DEST_IP[0],
+                   DEST_IP[1], DEST_IP[2], DEST_IP[3]);
       }
     }
   } else {

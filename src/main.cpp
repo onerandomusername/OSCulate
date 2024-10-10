@@ -59,7 +59,7 @@ void loop() {
     state_changed = false;
     digitalWrite(LED_BUILTIN, HIGH);
     ledLastOn = millis();
-    ULOG_INFO("State changed, sending commands");
+    ULOG_DEBUG("State changed, sending commands");
     processKeyboard(client);
   };
 
