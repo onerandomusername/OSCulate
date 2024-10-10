@@ -71,11 +71,16 @@ std::string rawKeytoOSCCommand(uint8_t keycode) {
   } else
     matcher = keycode | 0xF000;
 
-  if (CONTROL_PRESSED || SHIFT_PRESSED || ALT_PRESSED) {
-    matcher |= CONTROL_PRESSED << 9;
-    matcher |= SHIFT_PRESSED << 10;
-    matcher |= ALT_PRESSED << 11;
+  if (CONTROL_PRESSED) {
+    matcher |= CTRL;
   }
+  if (SHIFT_PRESSED) {
+    matcher |= SHIFT;
+  }
+  if (ALT_PRESSED) {
+    matcher |= ALT;
+  }
+
   std::string key_equal;
   if (!(KeyCombosToCommands.find(matcher) == KeyCombosToCommands.end())) {
     key_equal = KeyCombosToCommands.at(matcher);
