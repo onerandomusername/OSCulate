@@ -59,7 +59,7 @@ std::unordered_map<std::uint16_t, std::string> keyToCommand;
 /// @param keycode the raw keycode that was pressed on a keyboard.
 /// @return The OSC key that corresponds to the keypress.
 std::string rawKeytoOSCCommand(uint8_t keycode) {
-  ULOG_INFO("%u", keyboard_modifiers, HEX);
+  ULOG_INFO("Keyboard Modifiers: 0x%02X", keyboard_modifiers);
   const bool CONTROL_PRESSED = keyboard_modifiers & 0b00010001;
   const bool SHIFT_PRESSED = keyboard_modifiers & 0b00100010;
   const bool ALT_PRESSED = keyboard_modifiers & 0b01000100;
@@ -131,10 +131,8 @@ void OnRawPress(uint8_t keycode) {
     keyboard_modifiers |= 1 << (keycode - 103);
   }
 #ifdef SHOW_KEYBOARD_DATA
-  Serial.print("OnRawPress keycode: ");
-  Serial.print(keycode, HEX);
-  Serial.print(" Modifiers: ");
-  ULOG_INFO(keyboard_modifiers, HEX);
+  ULOG_INFO("OnRawPress keycode: 0x%02X", keycode);
+  ULOG_INFO(" Modifiers: 0x%02X", keyboard_modifiers);
 #endif
 }
 
@@ -150,10 +148,8 @@ void OnRawRelease(uint8_t keycode) {
     state_changed = true;
   }
 #ifdef SHOW_KEYBOARD_DATA
-  Serial.print("OnRawRelease keycode: ");
-  Serial.print(keycode, HEX);
-  Serial.print(" Modifiers: ");
-  ULOG_INFO(keyboard1.getModifiers(), HEX);
+  ULOG_INFO("OnRawRelease keycode: 0x%02X", keycode);
+  ULOG_INFO(" Modifiers: 0x%02X", keyboard1.getModifiers());
 #endif
 }
 
@@ -261,11 +257,6 @@ void ShowUpdatedDeviceListInfo() {
 }
 
 void ShowHIDExtrasPress(uint32_t top, uint16_t key) {
-  Serial.print("HID (");
-  Serial.print(top, HEX);
-  Serial.print(") key press:");
-  Serial.print(key, HEX);
-
   if (top != 0xc0000) {
     return;
   };
@@ -275,7 +266,7 @@ void ShowHIDExtrasPress(uint32_t top, uint16_t key) {
           ? keymap_key_to_name.at(key)
           : "\0";
 
-  ULOG_INFO(key_equal.c_str());
+  ULOG_INFO("HID (0x%02X) key press: 0x%02X %s", top, key, key_equal.c_str());
 }
 
 void setupKeyboard() {

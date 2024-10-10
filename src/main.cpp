@@ -29,10 +29,6 @@ void setup() {
   digitalWrite(LED_BUILTIN, HIGH);
 
   ULOG_INIT();
-
-  // log messages with a severity of WARNING or higher to the console.  The
-  // user must supply a method for my_console_logger, e.g. along the lines
-  // of what is shown above.
   ULOG_SUBSCRIBE(my_console_logger, ULOG_DEBUG_LEVEL);
 
   while (!Serial && millis() < 4000) {
