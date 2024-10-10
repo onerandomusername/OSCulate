@@ -30,6 +30,13 @@ void TCPConnection::send(OSCMessage &msg) {
   } else {
     sendOSCviaPacketLength(msg, transport);
   }
+  transport.flush();
+  if (transport.status() != ESTABLISHED) {
+    Serial.print("Transport status: ");
+    Serial.println(transport.status());
+    Serial.println("Aborting transport and recreating.");
+    transport.abort();
+  }
 }
 
 void TCPConnection::Task() {
@@ -57,6 +64,7 @@ bool TCPConnection::connectToConsole() {
       return false;
     }
     transport.setConnectionTimeout(600);
+    transport.setTimeout(600);
     Serial.println("Connected to LX console.");
     networkStateChanged = true;
   }
@@ -86,7 +94,7 @@ uint16_t sinceLastGatheredConsoles = 0;
 bool getLXConsoleIP() {
   Serial.println("Looking for consoles");
   EthernetUDP udpClient = EthernetUDP();
-  EthernetUDP udpServer = EthernetUDP();
+  EthernetUDP udpServer = EthernetUDP(10);
   udpServer.begin(3035);
 
   std::set<IPAddress> foundIPs;
