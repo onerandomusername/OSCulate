@@ -3,13 +3,8 @@
 #include "config.h"
 #include "keyboard.h"
 #include "network.h"
-#include "osc_base.h"
 #include "ulog.h"
 #include <Arduino.h>
-#include <list>
-#include <string>
-#include <unordered_map>
-#include <unordered_set>
 
 void my_console_logger(ulog_level_t severity, char *msg) {
   Serial.printf("[%s]: %s\n", ulog_level_name(severity), msg);

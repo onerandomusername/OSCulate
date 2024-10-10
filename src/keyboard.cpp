@@ -3,9 +3,9 @@
 #include "osc_base.h"
 #include "ulog.h"
 #include <Arduino.h>
-#include <OSCMessage.h>
 #include <USBHost_t36.h>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 
 // USB Host

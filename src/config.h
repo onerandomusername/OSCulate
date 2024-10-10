@@ -1,8 +1,8 @@
 #ifndef Config_h
 #define Config_h
 
-#include <OSCMessage.h>
-#include <QNEthernet.h>
+#include <IPAddress.h>
+#include <USBHost_t36.h>
 #include <string>
 #include <unordered_map>
 

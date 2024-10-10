@@ -5,10 +5,7 @@
 
 #include "SLIPEncodedTCP.h"
 #include "config.h"
-#include <Arduino.h>
 #include <OSCMessage.h>
-#include <list>
-#include <string>
 
 // The prefix for the OSC address that we will send to the console.
 const char addressPrefix[] = "/eos/key/";
