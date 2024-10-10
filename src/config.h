@@ -7,7 +7,8 @@
 #include <unordered_map>
 
 #ifdef CONFIG_CONSOLE_IP
-inline IPAddress DEST_IP = IPAddress().fromString(CONFIG_CONSOLE_IP);
+inline IPAddress DEST_IP = IPAddress();
+inline bool _unused_var = DEST_IP.fromString(CONFIG_CONSOLE_IP);
 #else
 inline IPAddress DEST_IP = IPAddress(0, 0, 0, 0);
 #endif // CONFIG_CONSOLE_IP
