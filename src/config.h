@@ -123,7 +123,7 @@ const std::unordered_map<std::uint16_t, std::string> KeyCombosToCommands = {
 
     {KEY_S, "sub"},
     {KEY_S | CTRL, "snapshot"},
-    {KEY_S | ALT, "setup"},
+    {KEY_S | ALT, "Open_Setup"},
     {KEY_S | CTRL | ALT, "release"},
 
     {KEY_T, "thru"},
