@@ -11,18 +11,13 @@
 #include <set>
 
 TCPConnection::TCPConnection(OSCVersion version = OSCVersion::SLIP)
-    : transport(), slip(transport) {
-  setOSCVersion(version);
+    : Connection(version), transport(), slip(transport) {
   transport = EthernetClient();
-  this->slip = SLIPEncodedTCP(transport);
 }
 
 TCPConnection::TCPConnection(EthernetClient eth,
                              OSCVersion version = OSCVersion::SLIP)
-    : transport(eth), slip(transport) {
-  this->slip = SLIPEncodedTCP(eth);
-  setOSCVersion(version);
-}
+    : Connection(version), transport(eth), slip(transport) {}
 
 void TCPConnection::send(OSCMessage &msg) {
   this->Task();

@@ -17,6 +17,8 @@ enum class OSCVersion {
 
 class Connection {
 public:
+  Connection(OSCVersion version) : _oscVersion(version) {}
+
   virtual bool connectToConsole() = 0;
   virtual void disconnectFromConsole() = 0;
   virtual bool isConnected() = 0;
@@ -25,6 +27,8 @@ public:
   OSCVersion getOSCVersion() { return _oscVersion; };
 
   virtual void Task() = 0;
+
+  virtual ~Connection() = default;
 
 protected:
   void setOSCVersion(OSCVersion version) { _oscVersion = version; };
